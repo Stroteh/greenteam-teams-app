@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GreenTeam - Kanban in Koledar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- GitHub Corner -->
+    <a href="https://github.com/Stroteh/greenteam-teams-app" class="github-corner" target="_blank" aria-label="View source on GitHub">
+        <svg width="80" height="80" viewBox="0 0 250 250" style="fill:#00a76d; color:#fff; position: absolute; top: 0; right: 0; border: 0;">
+            <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+            <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;"></path>
+            <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor"></path>
+        </svg>
+    </a>
+
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="header">
+            <h1>
+                <i class="fas fa-columns"></i>
+                GreenTeam
+                <span class="teams-badge" id="teamsBadge" style="display: none;">
+                    <i class="fab fa-microsoft"></i> Teams
+                </span>
+                <span id="firebaseBadge" style="display: none; background: #FFA000; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; margin-left: 10px;">
+                    <i class="fas fa-database"></i> Firebase
+                </span>
+            </h1>
+            <p class="header-subtitle">
+                Sledenje projektom in nalogam. Koledar za dnevne naloge in dogodke.
+            </p>
+        </header>
+
+        <!-- NAVIGACIJA -->
+        <div class="navigation">
+            <button class="nav-btn active" data-section="kanban">
+                <i class="fas fa-columns"></i> Kanban
+            </button>
+            <button class="nav-btn" data-section="calendar">
+                <i class="fas fa-calendar-alt"></i> Koledar
+            </button>
+            <button class="nav-btn" data-section="projects">
+                <i class="fas fa-project-diagram"></i> Projekti
+            </button>
+            <div style="flex: 1;"></div>
+            <button class="btn btn-primary" id="teamsConnectBtn" onclick="connectToTeams()">
+                <i class="fab fa-microsoft"></i> Poveži s Teams
+            </button>
+        </div>
+
+        <!-- KANBAN SEKCIJA -->
+        <section id="kanban-section" class="content-section active">
+            <div class="kanban-controls">
+                <div class="stats-container">
+                    <div class="stat-box">
+                        <div class="stat-number" id="totalTasks">0</div>
+                        <div class="stat-label">Vseh nalog</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="completedTasks">0</div>
+                        <div class="stat-label">Opravljenih</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="overdueTasks">0</div>
+                        <div class="stat-label">Zamujenih</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="inProgressTasks">0</div>
+                        <div class="stat-label">V teku</div>
+                    </div>
+                </div>
+
+                <div class="filter-container">
+                    <input type="text" class="search-box" placeholder="Išči naloge..." id="searchTasks">
+                    <select class="filter-select" id="filterPriority">
+                        <option value="all">Vse prioritete</option>
+                        <option value="high">Visoka</option>
+                        <option value="medium">Srednja</option>
+                        <option value="low">Nizka</option>
+                    </select>
+                    <select class="filter-select" id="filterAssignee">
+                        <option value="all">Vsi izvajalci</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="openTaskModal()">
+                        <i class="fas fa-plus"></i> Nova naloga
+                    </button>
+                </div>
+            </div>
+
+            <!-- KANBAN BOARD -->
+            <div class="kanban-board" id="kanbanBoard">
+                <!-- Stolpci se generirajo dinamično -->
+            </div>
+        </section>
+
+        <!-- KALENDAR SEKCIJA -->
+        <section id="calendar-section" class="content-section">
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <div class="calendar-nav">
+                        <button class="btn btn-icon btn-secondary" onclick="changeMonth(-1)">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <h2 class="calendar-title" id="calendarTitle">Maj 2024</h2>
+                        <button class="btn btn-icon btn-secondary" onclick="changeMonth(1)">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        <button class="btn btn-secondary" onclick="goToToday()">
+                            <i class="fas fa-calendar-day"></i> Danes
+                        </button>
+                    </div>
+                    
+                    <div class="calendar-actions">
+                        <button class="btn btn-secondary" onclick="openEventModal()">
+                            <i class="fas fa-plus"></i> Dodaj dogodek
+                        </button>
+                    </div>
+                </div>
+
+                <div class="calendar-grid" id="calendarGrid">
+                    <!-- Dnevi se generirajo dinamično -->
+                </div>
+            </div>
+
+            <div class="event-list">
+                <h3><i class="fas fa-list"></i> Prihajajoči dogodki</h3>
+                <div id="upcomingEvents">
+                    <!-- Dogodki se prikažejo dinamično -->
+                </div>
+            </div>
+        </section>
+
+        <!-- PROJEKTI SEKCIJA -->
+        <section id="projects-section" class="content-section">
+            <div class="calendar-container">
+                <h2><i class="fas fa-project-diagram"></i> Upravljanje projektov</h2>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <label>Dodaj nov projekt</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="newProjectName" class="form-control" placeholder="Ime projekta">
+                        <input type="color" id="newProjectColor" value="#00a76d" style="width: 60px;">
+                        <button class="btn btn-primary" onclick="addProject()">
+                            <i class="fas fa-plus"></i> Dodaj
+                        </button>
+                    </div>
+                </div>
+
+                <div id="projectsList" style="margin-top: 30px;">
+                    <!-- Projekti se prikažejo dinamično -->
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- MODAL ZA DODAJANJE/UREDITEV NALOGE -->
+    <div class="modal" id="taskModal">
+        <div class="modal-content">
+            <h2 id="modalTitle"><i class="fas fa-tasks"></i> Nova naloga</h2>
+            <form id="taskForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="taskTitle">Naslov naloge*</label>
+                        <input type="text" id="taskTitle" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskPriority">Prioriteta</label>
+                        <select id="taskPriority" class="form-control">
+                            <option value="low">Nizka</option>
+                            <option value="medium" selected>Srednja</option>
+                            <option value="high">Visoka</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="taskDescription">Opis</label>
+                    <textarea id="taskDescription" class="form-control" rows="4"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="taskDueDate">Rok</label>
+                        <input type="date" id="taskDueDate" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="taskProject">Projekt</label>
+                        <select id="taskProject" class="form-control">
+                            <option value="general">Splošno</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Izberite izvajalca</label>
+                    <div class="member-selector" id="memberSelector"></div>
+                </div>
+                <div class="form-group">
+                    <label for="taskTags">Oznake (ločite z vejicami)</label>
+                    <input type="text" id="taskTags" class="form-control" placeholder="npr. frontend, bug, urgent">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeTaskModal()">Prekliči</button>
+                    <button type="submit" class="btn btn-primary" id="modalSubmitBtn">Shrani nalogo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL ZA DODAJANJE/UREDITEV DOGODKA -->
+    <div class="modal" id="eventModal">
+        <div class="modal-content">
+            <h2 id="eventModalTitle"><i class="fas fa-calendar-plus"></i> Nov dogodek</h2>
+            <form id="eventForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="eventTitle">Naslov dogodka*</label>
+                        <input type="text" id="eventTitle" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventType">Vrsta dogodka</label>
+                        <select id="eventType" class="form-control">
+                            <option value="meeting">Sestanek</option>
+                            <option value="task">Naloga</option>
+                            <option value="holiday">Počitnice</option>
+                            <option value="general">Splošno</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="eventDescription">Opis</label>
+                    <textarea id="eventDescription" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="eventStartDate">Začetek</label>
+                        <input type="datetime-local" id="eventStartDate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventEndDate">Konec</label>
+                        <input type="datetime-local" id="eventEndDate" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="eventProject">Projekt (izbirno)</label>
+                        <select id="eventProject" class="form-control">
+                            <option value="">Brez projekta</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventReminder">Opomnik</label>
+                        <select id="eventReminder" class="form-control">
+                            <option value="none">Brez opomnika</option>
+                            <option value="5">5 minut prej</option>
+                            <option value="15">15 minut prej</option>
+                            <option value="30">30 minut prej</option>
+                            <option value="60">1 uro prej</option>
+                            <option value="1440">1 dan prej</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEventModal()">Prekliči</button>
+                    <button type="submit" class="btn btn-primary" id="eventSubmitBtn">Shrani dogodek</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"></script>
+    
+    <!-- Microsoft Teams JavaScript SDK -->
+    <script src="https://statics.teams.cdn.office.net/sdk/v1.11.0/js/MicrosoftTeams.min.js" 
+            integrity="sha384-SCVF3m7Ovnf3bqmojL/OBk9bFJTPGyz2jZ5VXfFvzOvgjv3QaeCQwQhKoMqYhC1w" 
+            crossorigin="anonymous"></script>
+    
+    <!-- Naše JavaScript kode -->
+    <script>
+        // TU VSTAVI SVOJ FIREBASE KONFIGURACIJSKI OBJEKT!
+     
+        
+        // Inicializacija Firebase
+        firebase.initializeApp(firebaseConfig);
+        console.log("🔥 Firebase inicializiran!");
+    </script>
+    
+    <script src="firebase-service.js"></script>
+    <script src="funkcije.js"></script>
+</body>
+</html>
