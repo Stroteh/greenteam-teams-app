@@ -1,5 +1,5 @@
 // firebase-config.example.js
-// COPY THIS TO GITHUB SECRETS!
+
 
 // This is an EXAMPLE config file. DO NOT use these values.
 // Add your REAL values in GitHub Repository Secrets:
@@ -10,12 +10,12 @@ window.firebaseConfig = {
   // 2. Find your Web App configuration
   // 3. Copy each value to GitHub Secrets
   
-  apiKey: "YOUR_API_KEY_HERE_IN_GITHUB_SECRETS",
-  authDomain: "YOUR_AUTH_DOMAIN_HERE_IN_GITHUB_SECRETS",
-  projectId: "YOUR_PROJECT_ID_HERE_IN_GITHUB_SECRETS",
-  storageBucket: "YOUR_STORAGE_BUCKET_HERE_IN_GITHUB_SECRETS",
-  messagingSenderId: "YOUR_SENDER_ID_HERE_IN_GITHUB_SECRETS",
-  appId: "YOUR_APP_ID_HERE_IN_GITHUB_SECRETS"
+  apiKey: "YOUR_API_KEY_HERE_IN_GITHUB",
+  authDomain: "YOUR_AUTH_DOMAIN_HERE_IN_GITHUB",
+  projectId: "YOUR_PROJECT_ID_HERE_IN_GITHUB",
+  storageBucket: "YOUR_STORAGE_BUCKET_HERE_IN_GITHUB",
+  messagingSenderId: "YOUR_SENDER_ID_HERE_IN_GITHUB",
+  appId: "YOUR_APP_ID_HERE_IN_GITHUB"
 };
 
 // How to setup:
