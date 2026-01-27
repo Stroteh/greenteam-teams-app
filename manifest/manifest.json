@@ -34,9 +34,10 @@
   ],
   "permissions": ["identity", "messageTeamMembers"],
   "validDomains": [
-    "YOUR-USERNAME.github.io",
+    "Stroteh.github.io",
     "*.firebaseapp.com",
     "*.firebaseio.com",
     "*.googleapis.com"
   ]
 }
+
