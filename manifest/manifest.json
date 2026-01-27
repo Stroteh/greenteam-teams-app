@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "packageName": "com.greenteam.kanban",
+  "developer": {
+    "name": "GreenTeam",
+    "websiteUrl": "https://Stroteh.github.io/greenteam-teams-app",
+    "privacyUrl": "https://Stroteh.github.io/greenteam-teams-app/manifest/privacy.html",
+    "termsOfUseUrl": "https://Stroteh.github.io/greenteam-teams-app/manifest/terms.html"
+  },
+  "name": {
+    "short": "GreenTeam",
+    "full": "GreenTeam Kanban & Koledar"
+  },
+  "description": {
+    "short": "Kanban in koledar za projektno vodenje",
+    "full": "GreenTeam aplikacija za sledenje projektom in nalogam z integracijo kanban tablice, koledarja in dnevnikov aktivnosti."
+  },
+  "icons": {
+    "outline": "icon-outline.png",
+    "color": "icon-color.png"
+  },
+  "accentColor": "#00A76D",
+  "staticTabs": [
+    {
+      "entityId": "greenteam-kanban",
+      "name": "GreenTeam",
+      "contentUrl": "https://Stroteh.github.io/greenteam-teams-app",
+      "websiteUrl": "https://Stroteh.github.io/greenteam-teams-app",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": [
+    "Stroteh.github.io",
+    "*.firebaseapp.com",
+    "*.firebaseio.com",
+    "*.googleapis.com"
+  ]
+}
+
