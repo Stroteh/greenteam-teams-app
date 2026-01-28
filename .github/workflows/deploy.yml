@@ -71,7 +71,7 @@ jobs:
         echo "  apiKey: '${{ secrets.FIREBASE_API_KEY || 'demo-key' }}'," >> firebase-config.js
         echo "  authDomain: '${{ secrets.FIREBASE_AUTH_DOMAIN || 'demo.firebaseapp.com' }}'," >> firebase-config.js
         echo "  projectId: '${{ secrets.FIREBASE_PROJECT_ID || 'demo-project' }}'," >> firebase-config.js
-        echo "  storageBucket: '${{ secrets.FIREBASE_STORAGE_BUCKET || 'demo.appspot.com' }}'," >> firebase-config.js
+        
         echo "  messagingSenderId: '${{ secrets.FIREBASE_SENDER_ID || '123456' }}'," >> firebase-config.js
         echo "  appId: '${{ secrets.FIREBASE_APP_ID || '1:123:web:abc' }}'" >> firebase-config.js
         echo "};" >> firebase-config.js
