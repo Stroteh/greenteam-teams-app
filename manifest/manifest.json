@@ -7,8 +7,8 @@
   "developer": {
     "name": "GreenTeam",
     "websiteUrl": "https://stroteh.github.io/greenteam-teams-app",
-    "privacyUrl": "https://stroteh.github.io/greenteam-teams-app/privacy.html",
-    "termsOfUseUrl": "https://stroteh.github.io/greenteam-teams-app/terms.html"
+    "privacyUrl": "https://stroteh.github.io/greenteam-teams-app/manifest/privacy.html",
+    "termsOfUseUrl": "https://stroteh.github.io/greenteam-teams-app/manifest/terms.html"
   },
   "name": {
     "short": "GreenTeam",
@@ -40,4 +40,5 @@
     "*.googleapis.com"
   ]
 }
+
 
