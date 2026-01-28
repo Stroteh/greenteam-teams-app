@@ -1,25 +1,34 @@
-// firebase-service.js - Firebase servis za GreenTeam
+// firebase-service.js - Nadgrajena različica za več izvajalcev
+
 class FirebaseService {
     constructor() {
-        this.db = firebase.firestore();
+        this.db = null;
         this.isInitialized = false;
         this.currentTeamId = null;
         this.currentUserId = null;
-        this.unsubscribeTasks = null;
-        this.unsubscribeEvents = null;
         console.log("🔥 FirebaseService kreiran");
     }
 
-    // 1. Inicializacija s Teams kontekstom
     async initialize(teamsContext = null) {
         console.log("🚀 FirebaseService se pokreće...");
         
         try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            this.db = firebase.firestore();
+            
+            // Nastavi Firestore nastavitve za boljšo offline podporo
+            firebase.firestore().enablePersistence()
+                .catch((err) => {
+                    console.log("Firebase offline podpora ni na voljo:", err);
+                });
+            
             // Postavi korisničke podatke
             if (teamsContext && teamsContext.teamId) {
                 this.currentTeamId = teamsContext.teamId;
                 this.currentUserId = teamsContext.userObjectId || `user_${Date.now()}`;
-                console.log(`📱 Teams način: Team ID = ${this.currentTeamId}`);
+                console.log(`📱 Teams način: Team ID = ${this.currentTeamId}, User ID = ${this.currentUserId}`);
             } else {
                 this.currentTeamId = 'personal';
                 this.currentUserId = `user_${Date.now()}`;
@@ -30,7 +39,8 @@ class FirebaseService {
             console.log("✅ FirebaseService spreman!");
             
             // Pokaži Firebase badge
-            document.getElementById('firebaseBadge').style.display = 'inline-flex';
+            const badge = document.getElementById('firebaseBadge');
+            if (badge) badge.style.display = 'inline-flex';
             
             return true;
             
@@ -40,35 +50,28 @@ class FirebaseService {
         }
     }
 
-    // 2. Dohvati kolekciju za zadatke
     getTasksCollection() {
+        if (!this.db) return null;
+        
         if (this.currentTeamId && this.currentTeamId !== 'personal') {
-            // Timski način - svi vide iste zadatke
             return this.db.collection('teams').doc(this.currentTeamId).collection('tasks');
         } else {
-            // Personal način - samo ovaj korisnik
             return this.db.collection('users').doc(this.currentUserId).collection('tasks');
         }
     }
 
-    // 3. Dohvati kolekciju za događaje
-    getEventsCollection() {
-        if (this.currentTeamId && this.currentTeamId !== 'personal') {
-            return this.db.collection('teams').doc(this.currentTeamId).collection('events');
-        } else {
-            return this.db.collection('users').doc(this.currentUserId).collection('events');
-        }
-    }
-
-    // 4. Spremi zadatak
     async saveTask(task) {
         try {
             console.log("💾 Spremanje zadatka u Firebase:", task.title);
             
-            // Osiguraj da je ID string
+            // Pripremi podatke za Firebase
             const taskData = {
                 ...task,
                 id: task.id.toString(),
+                assigneeIds: task.assigneeIds || [task.assigneeId || this.currentUserId],
+                assignees: task.assignees || [],
+                assigneeNames: task.assigneeNames || task.assigneeName || 'Neznan',
+                assigneeInitials: task.assigneeInitials || task.assigneeInitials || '??',
                 updatedAt: new Date().toISOString(),
                 createdAt: task.createdAt || new Date().toISOString()
             };
@@ -84,12 +87,14 @@ class FirebaseService {
         }
     }
 
-    // 5. Uključi real-time osluškivanje za zadatke
     subscribeToTasks(onTasksUpdated) {
         console.log("👂 Uključujem real-time osluškivanje za zadatke...");
         
         try {
-            this.unsubscribeTasks = this.getTasksCollection()
+            const tasksCollection = this.getTasksCollection();
+            if (!tasksCollection) return;
+            
+            this.unsubscribeTasks = tasksCollection
                 .orderBy('createdAt', 'desc')
                 .onSnapshot((snapshot) => {
                     const tasks = [];
