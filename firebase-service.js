@@ -70,19 +70,28 @@ class FirebaseService {
         }
     }
 
-    async signInAnonymously() {
-        try {
-            const authResult = await this.auth.signInAnonymously();
-            this.currentUserId = authResult.user.uid;
-            console.log(" Anonimni uporabnik prijavljen:", this.currentUserId);
-            return true;
-        } catch (error) {
-            console.error(" Napaka pri anonimni prijavi:", error);
-            // Fallback
-            this.currentUserId = `anon_${Date.now()}`;
-            return true;
+   async signInAnonymously() {
+    try {
+        console.log("🔑 Poskušam anonimno prijavo...");
+        
+        // Preveri, če je authentication na voljo
+        if (!this.auth) {
+            throw new Error("Authentication ni inicializiran");
         }
+        
+        const authResult = await this.auth.signInAnonymously();
+        this.currentUserId = authResult.user.uid;
+        console.log("✅ Anonimni uporabnik prijavljen:", this.currentUserId);
+        return true;
+    } catch (error) {
+        console.error("❌ Napaka pri anonimni prijavi:", error.code, error.message);
+        
+        // Fallback: Ustvari lokalni user ID
+        this.currentUserId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log("🔄 Uporabljam fallback user ID:", this.currentUserId);
+        return true; // Vrnemo true, da aplikacija nadaljuje
     }
+}
 
     async saveTeamsUser(user, teamId) {
         try {
