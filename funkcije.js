@@ -15,7 +15,7 @@ let firebaseInitialized = false;
 const STORAGE_KEY = 'greenteam_app_data_v6';
 
 // ============================================
-// INICIALIZACIJA APLIKACIJE
+// INICIALIZACIJA APLIKACIJE - POPRAVLJENO
 // ============================================
 document.addEventListener('DOMContentLoaded', async function() {
     console.log("🚀 GreenTeam se zagnal...");
@@ -24,120 +24,717 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupEventListeners();
     setupNavigation();
     
-    // Zaženi aplikacijo
-    await initializeApp();
+    // Zaženi aplikacijo v demo načinu za začetek
+    await initializeAppDemoMode();
 });
 
-async function initializeApp() {
+// Demo način za začetek (brez Teams in Firebase)
+async function initializeAppDemoMode() {
     try {
-        // 1. Preveri Teams
-        const teamsSuccess = await teamsIntegration.initialize();
-        isTeamsMode = teamsSuccess;
+        console.log("🏠 Začenjam v demo načinu...");
         
-        if (teamsSuccess) {
-            console.log("✅ Teams uspešno inicializiran");
-            currentUser = teamsIntegration.currentUser;
-            members = teamsIntegration.members;
-            
-            // Posodobi Teams badge
-            document.getElementById('teamsBadge').style.display = 'inline-flex';
-            document.getElementById('teamsConnectBtn').innerHTML = '<i class="fab fa-microsoft"></i> Povezano s Teams';
-            document.getElementById('teamsConnectBtn').disabled = true;
-        } else {
-            // Standalone način
-            console.log("🏠 Standalone način");
-            currentUser = {
-                id: `user_${Date.now()}`,
-                name: 'Trenutni Uporabnik',
-                initials: 'TU',
-                isTeamsUser: false,
-                teamId: 'personal'
-            };
-            members = [currentUser];
-        }
+        // 1. Nastavi demo uporabnika
+        currentUser = {
+            id: `user_${Date.now()}`,
+            name: 'Demo Uporabnik',
+            initials: 'DU',
+            isTeamsUser: false,
+            teamId: 'personal'
+        };
+        members = [currentUser];
         
         // 2. Posodobi avatar
         updateUserAvatar();
         
-        // 3. Inicializiraj Firebase
-        const teamsContext = teamsSuccess ? await teamsIntegration.getContextForFirebase() : null;
-        firebaseInitialized = await firebaseService.initialize(teamsContext);
+        // 3. Preveri Firebase
+        firebaseInitialized = false;
+        console.log("ℹ️ Demo način - uporabljam localStorage");
         
-        if (firebaseInitialized) {
-            console.log("✅ Firebase uspešno inicializiran");
-            
-            // Nastavi real-time osluškivanje
-            setupFirebaseListeners();
-            
-            // Sinhroniziraj podatke
-            await syncDataWithFirebase();
-            
-        } else {
-            console.warn("⚠️ Firebase ni inicializiran, uporabljam localStorage");
-            await loadFromStorage();
-        }
+        // 4. Naloži iz localStorage
+        await loadFromStorage();
         
-        // 4. Inicializiraj UI
+        // 5. Inicializiraj UI
         initializeUI();
         
-        // 5. Zaženi periodične preverjanja
+        // 6. Zaženi periodične preverjanja
         startPeriodicChecks();
         
-        console.log("🎉 Aplikacija uspešno zagnana!");
+        console.log("🎉 Aplikacija uspešno zagnana v demo načinu!");
         
     } catch (error) {
         console.error("❌ Napaka pri zagonu aplikacije:", error);
-        showNotification("Napaka pri zagonu aplikacije", 'error');
+        showNotification("Aplikacija zagnana v demo načinu", 'info');
     }
 }
 
-function setupFirebaseListeners() {
-    // Real-time za naloge
-    firebaseService.subscribeToTasks((firebaseTasks) => {
-        tasks = firebaseTasks;
-        renderKanban();
-        updateStats();
-        updateProjectOverview();
+// ============================================
+// KOLEDAR FUNKCIJE (MANJKAJOČE)
+// ============================================
+
+let calendarCurrentMonth = new Date().getMonth();
+let calendarCurrentYear = new Date().getFullYear();
+
+function renderCalendar() {
+    console.log("📅 Render koledarja...");
+    const calendarGrid = document.getElementById('calendarGrid');
+    if (!calendarGrid) return;
+    
+    // Posodobi naslov
+    const monthNames = ["Januar", "Februar", "Marec", "April", "Maj", "Junij", 
+                       "Julij", "Avgust", "September", "Oktober", "November", "December"];
+    document.getElementById('calendarTitle').textContent = 
+        `${monthNames[calendarCurrentMonth]} ${calendarCurrentYear}`;
+    
+    // Pripravi dan v mesecu
+    const firstDay = new Date(calendarCurrentYear, calendarCurrentMonth, 1);
+    const lastDay = new Date(calendarCurrentYear, calendarCurrentMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const firstDayIndex = firstDay.getDay();
+    
+    // Nastavi dneve v tednu
+    const dayNames = ["Ned", "Pon", "Tor", "Sre", "Čet", "Pet", "Sob"];
+    let calendarHTML = '';
+    
+    // Dnevi v tednu
+    dayNames.forEach(day => {
+        calendarHTML += `<div class="calendar-day-header">${day}</div>`;
     });
     
-    // Real-time za dogodke
-    firebaseService.subscribeToEvents((firebaseEvents) => {
-        events = firebaseEvents;
-        renderCalendar();
-        loadUpcomingEvents();
+    // Prazni prostor pred prvim dnem
+    for (let i = 0; i < firstDayIndex; i++) {
+        calendarHTML += `<div class="calendar-day other-month"></div>`;
+    }
+    
+    // Dnevi v mesecu
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(calendarCurrentYear, calendarCurrentMonth, day);
+        const isToday = day === today.getDate() && 
+                       calendarCurrentMonth === currentMonth && 
+                       calendarCurrentYear === currentYear;
+        
+        let dayEvents = events.filter(event => {
+            const eventDate = new Date(event.startDate);
+            return eventDate.getDate() === day && 
+                   eventDate.getMonth() === calendarCurrentMonth &&
+                   eventDate.getFullYear() === calendarCurrentYear;
+        }).slice(0, 3); // Prikaži max 3 dogodke na dan
+        
+        const moreEvents = events.filter(event => {
+            const eventDate = new Date(event.startDate);
+            return eventDate.getDate() === day && 
+                   eventDate.getMonth() === calendarCurrentMonth &&
+                   eventDate.getFullYear() === calendarCurrentYear;
+        }).length - 3;
+        
+        let dayClass = "calendar-day";
+        if (isToday) dayClass += " today";
+        if (date.getDay() === 0 || date.getDay() === 6) dayClass += " weekend";
+        
+        calendarHTML += `
+            <div class="${dayClass}" onclick="openDayEvents(${day}, ${calendarCurrentMonth}, ${calendarCurrentYear})">
+                <div class="day-number">${day}</div>
+                <div class="day-events">
+                    ${dayEvents.map(event => {
+                        let eventClass = "calendar-event";
+                        if (event.type) eventClass += ` event-${event.type}`;
+                        else if (event.priority) eventClass += ` event-${event.priority}`;
+                        
+                        return `<div class="${eventClass}" title="${event.title}">${event.title.substring(0, 15)}${event.title.length > 15 ? '...' : ''}</div>`;
+                    }).join('')}
+                    ${moreEvents > 0 ? `<div class="more-events">+${moreEvents} več</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Prazni prostor za konec meseca
+    const totalCells = 42; // 6 vrstic x 7 stolpcev
+    const usedCells = firstDayIndex + daysInMonth;
+    for (let i = usedCells; i < totalCells; i++) {
+        calendarHTML += `<div class="calendar-day other-month"></div>`;
+    }
+    
+    calendarGrid.innerHTML = calendarHTML;
+}
+
+function changeMonth(delta) {
+    calendarCurrentMonth += delta;
+    
+    if (calendarCurrentMonth < 0) {
+        calendarCurrentMonth = 11;
+        calendarCurrentYear--;
+    } else if (calendarCurrentMonth > 11) {
+        calendarCurrentMonth = 0;
+        calendarCurrentYear++;
+    }
+    
+    renderCalendar();
+}
+
+function goToToday() {
+    const today = new Date();
+    calendarCurrentMonth = today.getMonth();
+    calendarCurrentYear = today.getFullYear();
+    renderCalendar();
+}
+
+function openDayEvents(day, month, year) {
+    const date = new Date(year, month, day);
+    const dayEvents = events.filter(event => {
+        const eventDate = new Date(event.startDate);
+        return eventDate.getDate() === day && 
+               eventDate.getMonth() === month &&
+               eventDate.getFullYear() === year;
     });
     
-    // Real-time za projekte
-    firebaseService.subscribeToProjects((firebaseProjects) => {
-        projects = firebaseProjects;
+    if (dayEvents.length > 0) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <h2><i class="fas fa-calendar-day"></i> Dogodki za ${day}. ${month + 1}. ${year}</h2>
+                <div class="event-list-modal">
+                    ${dayEvents.map(event => `
+                        <div class="event-item">
+                            <div class="event-color" style="background: ${getEventColor(event)}"></div>
+                            <div class="event-time">${new Date(event.startDate).toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit'})}</div>
+                            <div class="event-title">${event.title}</div>
+                            <div class="event-actions">
+                                <button class="action-btn edit" onclick="editEvent(${event.id})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="action-btn delete" onclick="deleteEvent(${event.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('dayEventsModal')">Zapri</button>
+                    <button class="btn btn-primary" onclick="openEventModal(null, ${day}, ${month}, ${year})">
+                        <i class="fas fa-plus"></i> Dodaj dogodek
+                    </button>
+                </div>
+            </div>
+        `;
+        modal.id = 'dayEventsModal';
+        document.body.appendChild(modal);
+        modal.style.display = 'flex';
+    } else {
+        openEventModal(null, day, month, year);
+    }
+}
+
+function getEventColor(event) {
+    switch(event.type) {
+        case 'meeting': return 'var(--calendar-meeting)';
+        case 'task': return 'var(--calendar-task)';
+        case 'holiday': return 'var(--calendar-holiday)';
+        case 'birthday': return 'var(--calendar-birthday)';
+        default: return 'var(--calendar-event)';
+    }
+}
+
+// ============================================
+// DOGODKI FUNKCIJE
+// ============================================
+
+function openEventModal(eventId = null, day = null, month = null, year = null) {
+    editingEventId = eventId;
+    const modal = document.getElementById('eventModal');
+    
+    if (eventId) {
+        const event = events.find(e => e.id === eventId);
+        if (!event) return;
+        
+        document.getElementById('eventModalTitle').innerHTML = '<i class="fas fa-edit"></i> Uredi dogodek';
+        document.getElementById('eventSubmitBtn').textContent = 'Posodobi dogodek';
+        
+        // Nastavi vrednosti
+        document.getElementById('eventTitle').value = event.title;
+        document.getElementById('eventDescription').value = event.description || '';
+        document.getElementById('eventType').value = event.type || 'general';
+        
+        const startDate = new Date(event.startDate);
+        const endDate = new Date(event.endDate);
+        
+        document.getElementById('eventStartDate').value = formatDateTimeLocal(startDate);
+        document.getElementById('eventEndDate').value = formatDateTimeLocal(endDate);
+        document.getElementById('eventProject').value = event.projectId || '';
+        document.getElementById('eventReminder').value = event.reminder || 'none';
+        
+    } else {
+        document.getElementById('eventModalTitle').innerHTML = '<i class="fas fa-calendar-plus"></i> Nov dogodek';
+        document.getElementById('eventSubmitBtn').textContent = 'Dodaj dogodek';
+        document.getElementById('eventForm').reset();
+        
+        // Če imamo dan, nastavi začetni datum
+        if (day !== null) {
+            const date = new Date(year, month, day, 9, 0);
+            document.getElementById('eventStartDate').value = formatDateTimeLocal(date);
+            
+            const endDate = new Date(year, month, day, 10, 0);
+            document.getElementById('eventEndDate').value = formatDateTimeLocal(endDate);
+        } else {
+            // Nastavi začetek čez 1 uro in konec čez 2 uri
+            const start = new Date();
+            start.setHours(start.getHours() + 1, 0, 0, 0);
+            const end = new Date(start.getTime() + 60 * 60 * 1000);
+            
+            document.getElementById('eventStartDate').value = formatDateTimeLocal(start);
+            document.getElementById('eventEndDate').value = formatDateTimeLocal(end);
+        }
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function formatDateTimeLocal(date) {
+    return date.toISOString().slice(0, 16);
+}
+
+function closeEventModal() {
+    document.getElementById('eventModal').style.display = 'none';
+    editingEventId = null;
+}
+
+document.getElementById('eventForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const title = document.getElementById('eventTitle').value.trim();
+    const description = document.getElementById('eventDescription').value.trim();
+    const type = document.getElementById('eventType').value;
+    const startDate = document.getElementById('eventStartDate').value;
+    const endDate = document.getElementById('eventEndDate').value;
+    const projectId = document.getElementById('eventProject').value;
+    const reminder = document.getElementById('eventReminder').value;
+    
+    if (!title || !startDate || !endDate) {
+        showNotification('Izpolnite vsa obvezna polja', 'warning');
+        return;
+    }
+    
+    if (new Date(startDate) >= new Date(endDate)) {
+        showNotification('Začetni datum mora biti pred končnim', 'warning');
+        return;
+    }
+    
+    if (editingEventId) {
+        // Urejanje obstoječega dogodka
+        const eventIndex = events.findIndex(e => e.id === editingEventId);
+        if (eventIndex !== -1) {
+            const project = projects.find(p => p.id == projectId);
+            
+            const updatedEvent = {
+                ...events[eventIndex],
+                title,
+                description,
+                type,
+                startDate: new Date(startDate).toISOString(),
+                endDate: new Date(endDate).toISOString(),
+                projectId,
+                projectName: project ? project.name : '',
+                reminder,
+                updatedAt: new Date().toISOString()
+            };
+            
+            events[eventIndex] = updatedEvent;
+            
+            if (firebaseInitialized && window.firebaseService) {
+                await window.firebaseService.saveEvent(updatedEvent);
+            } else {
+                saveToStorage();
+            }
+        }
+    } else {
+        // Nov dogodek
+        const project = projects.find(p => p.id == projectId);
+        
+        const newEvent = {
+            id: Date.now(),
+            title,
+            description,
+            type,
+            startDate: new Date(startDate).toISOString(),
+            endDate: new Date(endDate).toISOString(),
+            projectId,
+            projectName: project ? project.name : '',
+            reminder,
+            createdBy: currentUser,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        events.push(newEvent);
+        
+        if (firebaseInitialized && window.firebaseService) {
+            await window.firebaseService.saveEvent(newEvent);
+        } else {
+            saveToStorage();
+        }
+    }
+    
+    renderCalendar();
+    loadUpcomingEvents();
+    closeEventModal();
+    showNotification(editingEventId ? 'Dogodek posodobljen' : 'Dogodek dodan', 'success');
+});
+
+function deleteEvent(eventId) {
+    if (!confirm('Ali ste prepričani, da želite izbrisati ta dogodek?')) return;
+    
+    try {
+        if (firebaseInitialized && window.firebaseService) {
+            window.firebaseService.deleteEvent(eventId);
+        } else {
+            events = events.filter(e => e.id !== eventId);
+            saveToStorage();
+            renderCalendar();
+            loadUpcomingEvents();
+        }
+        
+        showNotification('Dogodek izbrisan', 'success');
+    } catch (error) {
+        console.error("❌ Napaka pri brisanju dogodka:", error);
+        showNotification('Napaka pri brisanju dogodka', 'error');
+    }
+}
+
+function loadUpcomingEvents() {
+    const upcomingEvents = document.getElementById('upcomingEvents');
+    if (!upcomingEvents) return;
+    
+    const now = new Date();
+    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    const upcoming = events
+        .filter(event => {
+            const eventDate = new Date(event.startDate);
+            return eventDate >= now && eventDate <= nextWeek;
+        })
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+        .slice(0, 10);
+    
+    if (upcoming.length === 0) {
+        upcomingEvents.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-calendar-check"></i>
+                <p>Ni prihajajočih dogodkov v naslednjih 7 dneh</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    upcoming.forEach(event => {
+        const eventDate = new Date(event.startDate);
+        const eventColor = getEventColor(event);
+        
+        html += `
+            <div class="event-item">
+                <div class="event-color" style="background: ${eventColor}"></div>
+                <div class="event-time">
+                    ${eventDate.toLocaleDateString('sl-SI', { weekday: 'short', day: 'numeric' })}<br>
+                    ${eventDate.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit'})}
+                </div>
+                <div class="event-title">${event.title}</div>
+                <div class="event-actions">
+                    <button class="action-btn edit" onclick="openEventModal(${event.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn delete" onclick="deleteEvent(${event.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    upcomingEvents.innerHTML = html;
+}
+
+// ============================================
+// PROJEKTI FUNKCIJE (MANJKAJOČE)
+// ============================================
+
+function updateProjectSelectors() {
+    console.log("🔄 Posodabljam izbire projektov...");
+    
+    // Selector za naloge
+    const taskProjectSelector = document.getElementById('taskProject');
+    if (taskProjectSelector) {
+        taskProjectSelector.innerHTML = '<option value="general">Splošno</option>';
+        projects.forEach(project => {
+            const option = document.createElement('option');
+            option.value = project.id;
+            option.textContent = project.name;
+            taskProjectSelector.appendChild(option);
+        });
+    }
+    
+    // Selector za dogodke
+    const eventProjectSelector = document.getElementById('eventProject');
+    if (eventProjectSelector) {
+        eventProjectSelector.innerHTML = '<option value="">Brez projekta</option>';
+        projects.forEach(project => {
+            const option = document.createElement('option');
+            option.value = project.id;
+            option.textContent = project.name;
+            eventProjectSelector.appendChild(option);
+        });
+    }
+}
+
+function renderProjectsList() {
+    console.log("📋 Render seznama projektov...");
+    const projectsList = document.getElementById('projectsList');
+    if (!projectsList) return;
+    
+    if (projects.length === 0) {
+        projectsList.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-project-diagram"></i>
+                <p>Ni projektov</p>
+                <small>Dodajte prvi projekt z zgornjim obrazcem</small>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="projects-grid">';
+    
+    projects.forEach(project => {
+        const projectTasks = tasks.filter(t => t.projectId == project.id);
+        const completedTasks = projectTasks.filter(t => t.status === 'done').length;
+        const completionRate = projectTasks.length > 0 ? 
+            Math.round((completedTasks / projectTasks.length) * 100) : 0;
+        
+        html += `
+            <div class="project-card" style="border-left-color: ${project.color || '#00a76d'}">
+                <div class="project-card-header">
+                    <div class="project-color" style="background: ${project.color || '#00a76d'}"></div>
+                    <h3>${project.name}</h3>
+                    <div class="project-actions">
+                        <button class="action-btn edit" onclick="editProject(${project.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn delete" onclick="deleteProject(${project.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="project-stats">
+                    <div class="project-stat">
+                        <i class="fas fa-tasks"></i>
+                        <span>${projectTasks.length} nalog</span>
+                    </div>
+                    <div class="project-stat">
+                        <i class="fas fa-check-circle"></i>
+                        <span>${completionRate}% opravljeno</span>
+                    </div>
+                </div>
+                
+                <div class="progress-bar" style="margin: 10px 0;">
+                    <div class="progress-fill" style="width: ${completionRate}%; background: ${project.color || '#00a76d'}"></div>
+                </div>
+                
+                <div class="project-tasks">
+                    <small>Zadnje naloge:</small>
+                    ${projectTasks.slice(0, 3).map(task => `
+                        <div class="project-task-item ${task.status}">
+                            <i class="fas fa-${getTaskIcon(task.status)}"></i>
+                            <span>${task.title}</span>
+                        </div>
+                    `).join('')}
+                    ${projectTasks.length > 3 ? `<div class="project-more">+${projectTasks.length - 3} več</div>` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    projectsList.innerHTML = html;
+}
+
+function getTaskIcon(status) {
+    switch(status) {
+        case 'todo': return 'clipboard';
+        case 'progress': return 'spinner';
+        case 'review': return 'search';
+        case 'done': return 'check';
+        default: return 'question';
+    }
+}
+
+function addProject() {
+    const nameInput = document.getElementById('newProjectName');
+    const colorInput = document.getElementById('newProjectColor');
+    
+    const name = nameInput?.value.trim();
+    const color = colorInput?.value;
+    
+    if (!name) {
+        showNotification('Vnesite ime projekta', 'warning');
+        return;
+    }
+    
+    const newProject = {
+        id: Date.now(),
+        name: name,
+        color: color,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser
+    };
+    
+    projects.push(newProject);
+    
+    if (firebaseInitialized && window.firebaseService) {
+        window.firebaseService.saveProject(newProject);
+    } else {
+        saveToStorage();
+    }
+    
+    // Počisti polja
+    if (nameInput) nameInput.value = '';
+    if (colorInput) colorInput.value = '#00a76d';
+    
+    // Posodobi UI
+    updateProjectSelectors();
+    renderProjectsList();
+    updateProjectOverview();
+    
+    showNotification(`Projekt "${name}" dodan`, 'success');
+}
+
+function editProject(projectId) {
+    const project = projects.find(p => p.id == projectId);
+    if (!project) return;
+    
+    const newName = prompt('Novo ime projekta:', project.name);
+    if (!newName || newName.trim() === '') return;
+    
+    const newColor = prompt('Nova barva (hex format):', project.color || '#00a76d');
+    if (!newColor) return;
+    
+    project.name = newName.trim();
+    project.color = newColor;
+    project.updatedAt = new Date().toISOString();
+    
+    if (firebaseInitialized && window.firebaseService) {
+        window.firebaseService.saveProject(project);
+    } else {
+        saveToStorage();
+    }
+    
+    // Posodobi vse naloge tega projekta
+    tasks.forEach(task => {
+        if (task.projectId == projectId) {
+            task.projectName = newName;
+        }
+    });
+    
+    updateProjectSelectors();
+    renderProjectsList();
+    renderKanban();
+    updateProjectOverview();
+    
+    showNotification('Projekt posodobljen', 'success');
+}
+
+function deleteProject(projectId) {
+    if (!confirm('Ali ste prepričani, da želite izbrisati ta projekt? Naloge tega projekta bodo premaknjene v Splošno.')) return;
+    
+    try {
+        // Premakni naloge v Splošno
+        tasks.forEach(task => {
+            if (task.projectId == projectId) {
+                task.projectId = 'general';
+                task.projectName = 'Splošno';
+            }
+        });
+        
+        // Izbriši projekt
+        projects = projects.filter(p => p.id != projectId);
+        
+        if (firebaseInitialized && window.firebaseService) {
+            // Posodobi naloge v Firebase
+            tasks.filter(t => t.projectId == 'general').forEach(async task => {
+                await window.firebaseService.updateTask(task.id, {
+                    projectId: 'general',
+                    projectName: 'Splošno'
+                });
+            });
+            
+            // Izbriši projekt iz Firebase
+            window.firebaseService.deleteProject(projectId);
+        } else {
+            saveToStorage();
+        }
+        
+        // Posodobi UI
         updateProjectSelectors();
         renderProjectsList();
+        renderKanban();
         updateProjectOverview();
-    });
+        
+        showNotification('Projekt izbrisan', 'success');
+    } catch (error) {
+        console.error("❌ Napaka pri brisanju projekta:", error);
+        showNotification('Napaka pri brisanju projekta', 'error');
+    }
+}
+
+// ============================================
+// OSNOVNE FUNKCIJE
+// ============================================
+
+function setupFirebaseListeners() {
+    // Real-time za naloge
+    if (window.firebaseService && window.firebaseService.subscribeToTasks) {
+        window.firebaseService.subscribeToTasks((firebaseTasks) => {
+            tasks = firebaseTasks;
+            renderKanban();
+            updateStats();
+            updateProjectOverview();
+        });
+    }
+    
+    // Real-time za dogodke
+    if (window.firebaseService && window.firebaseService.subscribeToEvents) {
+        window.firebaseService.subscribeToEvents((firebaseEvents) => {
+            events = firebaseEvents;
+            renderCalendar();
+            loadUpcomingEvents();
+        });
+    }
+    
+    // Real-time za projekte
+    if (window.firebaseService && window.firebaseService.subscribeToProjects) {
+        window.firebaseService.subscribeToProjects((firebaseProjects) => {
+            projects = firebaseProjects;
+            updateProjectSelectors();
+            renderProjectsList();
+            updateProjectOverview();
+        });
+    }
     
     // Naloži člane ekipe
     loadTeamMembersFromFirebase();
 }
 
-async function syncDataWithFirebase() {
-    try {
-        const syncedData = await firebaseService.syncWithLocal(tasks, events, projects);
-        
-        tasks = syncedData.tasks;
-        events = syncedData.events;
-        projects = syncedData.projects;
-        
-        console.log(`🔄 Sinhronizirano: ${tasks.length} nalog, ${events.length} dogodkov, ${projects.length} projektov`);
-        
-    } catch (error) {
-        console.error("❌ Napaka pri sinhronizaciji:", error);
-        await loadFromStorage();
-    }
-}
-
 async function loadTeamMembersFromFirebase() {
     try {
-        const firebaseMembers = await firebaseService.getTeamMembers();
+        if (!window.firebaseService || !window.firebaseService.getTeamMembers) {
+            return;
+        }
+        
+        const firebaseMembers = await window.firebaseService.getTeamMembers();
         
         if (firebaseMembers.length > 0) {
             members = firebaseMembers;
@@ -152,124 +749,96 @@ async function loadTeamMembersFromFirebase() {
     }
 }
 
-// ============================================
-// NAVIGACIJA
-// ============================================
-function setupNavigation() {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const section = this.dataset.section;
-            
-            document.querySelectorAll('.nav-btn').forEach(b => {
-                b.classList.remove('active');
-            });
-            this.classList.add('active');
-            
-            document.querySelectorAll('.content-section').forEach(sec => {
-                sec.classList.remove('active');
-            });
-            
-            const targetSection = document.getElementById(`${section}-section`);
-            if (targetSection) {
-                targetSection.classList.add('active');
-                
-                // Prikaži/projektni pregled samo za kanban
-                const overview = document.getElementById('projectOverviewContainer');
-                if (overview) {
-                    overview.style.display = section === 'kanban' ? 'block' : 'none';
-                }
-            }
-        });
-    });
-}
-
-// ============================================
-// UPORABNIŠKI AVATAR
-// ============================================
-function updateUserAvatar() {
-    const avatarCircle = document.getElementById('avatarCircle');
-    const avatarInitials = document.getElementById('avatarInitials');
-    const userName = document.getElementById('userName');
-    const userTeam = document.getElementById('userTeam');
-    const avatarContainer = document.getElementById('userAvatarContainer');
-    
-    if (!currentUser || !avatarCircle) return;
-    
-    // Prikaži avatar container
-    if (avatarContainer) {
-        avatarContainer.style.display = 'flex';
-    }
-    
-    // Nastavi inicialke
-    if (avatarInitials) {
-        avatarInitials.textContent = currentUser.initials;
-    }
-    
-    // Nastavi ime in ekipo
-    if (userName) {
-        userName.textContent = currentUser.name;
-    }
-    if (userTeam) {
-        userTeam.textContent = currentUser.teamId === 'personal' ? 'Personal' : currentUser.teamName || 'Ekipa';
-    }
-    
-    // Nastavi barvo za Teams uporabnike
-    if (currentUser.isTeamsUser) {
-        avatarCircle.classList.add('teams-user');
-        avatarCircle.style.background = 'linear-gradient(135deg, var(--teams-purple), var(--teams-purple-light))';
+async function syncDataWithFirebase() {
+    try {
+        if (!window.firebaseService || !window.firebaseService.syncWithLocal) {
+            await loadFromStorage();
+            return;
+        }
+        
+        const syncedData = await window.firebaseService.syncWithLocal(tasks, events, projects);
+        
+        tasks = syncedData.tasks;
+        events = syncedData.events;
+        projects = syncedData.projects;
+        
+        console.log(`🔄 Sinhronizirano: ${tasks.length} nalog, ${events.length} dogodkov, ${projects.length} projektov`);
+        
+    } catch (error) {
+        console.error("❌ Napaka pri sinhronizaciji:", error);
+        await loadFromStorage();
     }
 }
 
 // ============================================
-// UPRAVLJANJE ČLANOV EKIPE
+// INICIALIZACIJA UI
 // ============================================
-function renderMemberSelector() {
-    const selector = document.getElementById('memberSelector');
-    if (!selector) return;
+function initializeUI() {
+    // Prikaži projektni pregled
+    const overview = document.getElementById('projectOverviewContainer');
+    if (overview) overview.style.display = 'block';
     
-    selector.innerHTML = '';
+    // Inicializiraj UI komponente
+    updateProjectSelectors();
+    renderKanban();
+    updateStats();
+    updateProjectOverview();
+    renderCalendar();
+    loadUpcomingEvents();
+    renderProjectsList();
+    renderMemberSelector();
+    updateAssigneeFilter();
+    updateLiveClock(); // Zaženi takoj
+}
+
+function startPeriodicChecks() {
+    // Preveri rojstne dneve vsako uro
+    setInterval(checkBirthdays, 3600000);
     
-    // Dodaj trenutnega uporabnika
-    if (currentUser) {
-        const currentMember = document.createElement('div');
-        currentMember.className = 'member-option';
-        currentMember.innerHTML = `
-            <input type="checkbox" id="member_${currentUser.id}" class="member-checkbox" checked />
-            <label for="member_${currentUser.id}" class="member-label">
-                <div class="assignee-avatar current-user">${currentUser.initials}</div>
-                <span>${currentUser.name} (Jaz)</span>
-                <span class="current-user-badge">Trenutni</span>
-            </label>
-        `;
-        currentMember.classList.add('selected');
-        selector.appendChild(currentMember);
-        
-        // Event listener
-        currentMember.querySelector('.member-checkbox').addEventListener('change', function() {
-            currentMember.classList.toggle('selected', this.checked);
-        });
-    }
+    // Posodobi uro vsako sekundo
+    setInterval(updateLiveClock, 1000);
     
-    // Dodaj ostale člane
-    members.filter(m => m.id !== currentUser?.id).forEach(member => {
-        const memberDiv = document.createElement('div');
-        memberDiv.className = 'member-option';
-        memberDiv.innerHTML = `
-            <input type="checkbox" id="member_${member.id}" class="member-checkbox" />
-            <label for="member_${member.id}" class="member-label">
-                <div class="assignee-avatar">${member.initials}</div>
-                <span>${member.name}</span>
-                ${member.isTeamsUser ? '<span class="current-user-badge" style="background: var(--teams-purple);">Teams</span>' : ''}
-            </label>
-        `;
-        selector.appendChild(memberDiv);
-        
-        // Event listener
-        memberDiv.querySelector('.member-checkbox').addEventListener('change', function() {
-            memberDiv.classList.toggle('selected', this.checked);
-        });
+    // Posodobi projektni pregled vsakih 5 minut
+    setInterval(updateProjectOverview, 300000);
+    
+    // Preveri opomnike vsako minuto
+    setInterval(checkReminders, 60000);
+}
+
+function setupEventListeners() {
+    // Event listenerji za filtre
+    const searchInput = document.getElementById('searchTasks');
+    const priorityFilter = document.getElementById('filterPriority');
+    const assigneeFilter = document.getElementById('filterAssignee');
+    
+    if (searchInput) searchInput.addEventListener('input', renderKanban);
+    if (priorityFilter) priorityFilter.addEventListener('change', renderKanban);
+    if (assigneeFilter) assigneeFilter.addEventListener('change', renderKanban);
+    
+    // Zapri modal z ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeTaskModal();
+            closeEventModal();
+            const birthdayModal = document.getElementById('birthdayModal');
+            if (birthdayModal) closeModal('birthdayModal');
+        }
+    });
+    
+    // Zapri modal s klikom zunaj
+    window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+            closeTaskModal();
+            closeEventModal();
+            const birthdayModal = document.getElementById('birthdayModal');
+            if (birthdayModal) closeModal('birthdayModal');
+        }
     });
 }
+
+// ============================================
+// MANJKAJOČE POMOŽNE FUNKCIJE
+// ============================================
 
 function updateAssigneeFilter() {
     const filterAssignee = document.getElementById('filterAssignee');
@@ -286,231 +855,93 @@ function updateAssigneeFilter() {
     });
 }
 
-async function addTeamMember() {
-    const nameInput = document.getElementById('newMemberName');
-    const emailInput = document.getElementById('newMemberEmail');
-    
-    const name = nameInput?.value.trim();
-    const email = emailInput?.value.trim();
-    
-    if (!name) {
-        showNotification('Vnesite ime člana', 'warning');
-        return;
-    }
-    
-    try {
-        const newMember = {
-            name: name,
-            email: email,
-            initials: name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) || '??'
-        };
-        
-        let addedMember;
-        
-        if (firebaseInitialized) {
-            addedMember = await firebaseService.addTeamMember(newMember);
-        } else {
-            addedMember = {
-                ...newMember,
-                id: `local_${Date.now()}`,
-                isManual: true,
-                teamId: currentUser.teamId
-            };
-        }
-        
-        members.push(addedMember);
-        
-        // Posodobi UI
-        renderMemberSelector();
-        updateAssigneeFilter();
-        
-        // Počisti polja
-        if (nameInput) nameInput.value = '';
-        if (emailInput) emailInput.value = '';
-        
-        showNotification(`Član ${name} dodan`, 'success');
-        
-    } catch (error) {
-        console.error("❌ Napaka pri dodajanju člana:", error);
-        showNotification('Napaka pri dodajanju člana', 'error');
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.remove();
     }
 }
 
-// ============================================
-// UPRAVLJANJE NALOG - VEČ IZVAJALCEV
-// ============================================
-function openTaskModal(taskId = null) {
-    editingTaskId = taskId;
-    const modal = document.getElementById('taskModal');
+function checkReminders() {
+    const now = new Date();
     
-    if (taskId) {
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) return;
-        
-        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Uredi nalogo';
-        document.getElementById('modalSubmitBtn').textContent = 'Posodobi nalogo';
-        
-        // Nastavi vrednosti
-        document.getElementById('taskTitle').value = task.title;
-        document.getElementById('taskDescription').value = task.description;
-        document.getElementById('taskPriority').value = task.priority;
-        document.getElementById('taskDueDate').value = task.dueDate;
-        document.getElementById('taskProject').value = task.projectId || 'general';
-        document.getElementById('taskTags').value = task.tags ? task.tags.join(', ') : '';
-        
-        // Označi izvajalce
-        setTimeout(() => {
-            const assigneeIds = task.assigneeIds || (task.assigneeId ? [task.assigneeId] : []);
-            document.querySelectorAll('#memberSelector .member-checkbox').forEach(checkbox => {
-                const memberId = checkbox.id.replace('member_', '');
-                const isChecked = assigneeIds.includes(memberId) || 
-                                 (task.assigneeId && task.assigneeId.toString() === memberId);
-                checkbox.checked = isChecked;
-                checkbox.parentElement.parentElement.classList.toggle('selected', isChecked);
-            });
-        }, 100);
-        
-    } else {
-        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-tasks"></i> Nova naloga';
-        document.getElementById('modalSubmitBtn').textContent = 'Dodaj nalogo';
-        document.getElementById('taskForm').reset();
-        
-        // Privzeto označi trenutnega uporabnika
-        setTimeout(() => {
-            document.querySelectorAll('#memberSelector .member-checkbox').forEach(checkbox => {
-                const memberId = checkbox.id.replace('member_', '');
-                const isCurrentUser = memberId === currentUser?.id.toString();
-                checkbox.checked = isCurrentUser;
-                checkbox.parentElement.parentElement.classList.toggle('selected', isCurrentUser);
-            });
-        }, 100);
-    }
-    
-    modal.style.display = 'flex';
-}
-
-function closeTaskModal() {
-    document.getElementById('taskModal').style.display = 'none';
-    editingTaskId = null;
-}
-
-document.getElementById('taskForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const title = document.getElementById('taskTitle').value.trim();
-    const description = document.getElementById('taskDescription').value.trim();
-    const priority = document.getElementById('taskPriority').value;
-    const dueDate = document.getElementById('taskDueDate').value;
-    const projectId = document.getElementById('taskProject').value;
-    const tags = document.getElementById('taskTags').value
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0);
-    
-    // Pridobi izbrane člane
-    const selectedCheckboxes = document.querySelectorAll('#memberSelector .member-checkbox:checked');
-    const assigneeIds = Array.from(selectedCheckboxes).map(cb => 
-        cb.id.replace('member_', '')
-    );
-    
-    // Če ni izbranih, dodaj trenutnega uporabnika
-    if (assigneeIds.length === 0 && currentUser) {
-        assigneeIds.push(currentUser.id.toString());
-    }
-    
-    // Pridobi podatke o članih
-    const assignees = members.filter(m => assigneeIds.includes(m.id.toString()));
-    const project = projects.find(p => p.id == projectId);
-    
-    if (editingTaskId) {
-        // Urejanje obstoječe naloge
-        const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
-        if (taskIndex !== -1) {
-            const updatedTask = {
-                ...tasks[taskIndex],
-                title,
-                description,
-                priority,
-                dueDate,
-                projectId,
-                projectName: project ? project.name : 'Splošno',
-                tags,
-                assigneeIds,
-                assignees,
-                assigneeNames: assignees.map(a => a.name).join(', '),
-                assigneeInitials: assignees.map(a => a.initials),
-                updatedAt: new Date().toISOString()
-            };
+    events.forEach(event => {
+        if (event.reminder && event.reminder !== 'none' && !event.reminderShown) {
+            const eventTime = new Date(event.startDate);
+            const reminderMinutes = parseInt(event.reminder);
+            const reminderTime = new Date(eventTime.getTime() - reminderMinutes * 60 * 1000);
             
-            tasks[taskIndex] = updatedTask;
-            
-            if (firebaseInitialized) {
-                await firebaseService.saveTask(updatedTask);
-            } else {
-                saveToStorage();
+            if (now >= reminderTime && now < eventTime) {
+                showNotification(`Opomnik: ${event.title} začne ob ${eventTime.toLocaleTimeString('sl-SI', {hour: '2-digit', minute:'2-digit'})}`, 'info');
+                event.reminderShown = true;
+                
+                if (firebaseInitialized && window.firebaseService) {
+                    window.firebaseService.saveEvent(event);
+                } else {
+                    saveToStorage();
+                }
             }
         }
-    } else {
-        // Nova naloga
-        const newTask = {
-            id: Date.now(),
-            title,
-            description: description || 'Ni opisa',
-            priority,
-            status: 'todo',
-            dueDate,
-            projectId,
-            projectName: project ? project.name : 'Splošno',
-            tags,
-            assigneeIds,
-            assignees,
-            assigneeNames: assignees.map(a => a.name).join(', '),
-            assigneeInitials: assignees.map(a => a.initials),
-            createdBy: currentUser,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
-        
-        tasks.push(newTask);
-        
-        if (firebaseInitialized) {
-            await firebaseService.saveTask(newTask);
-        } else {
-            saveToStorage();
-        }
-    }
-    
-    renderKanban();
-    updateStats();
-    updateProjectOverview();
-    closeTaskModal();
-    showNotification(editingTaskId ? 'Naloga posodobljena' : 'Naloga dodana', 'success');
-});
+    });
+}
 
-async function deleteTask(taskId) {
-    if (!confirm('Ali ste prepričani, da želite izbrisati to nalogo?')) return;
-    
+// ============================================
+// LOCALSTORAGE FUNKCIJE
+// ============================================
+function saveToStorage() {
     try {
-        if (firebaseInitialized) {
-            await firebaseService.deleteTask(taskId);
-        } else {
-            tasks = tasks.filter(t => t.id !== taskId);
-            saveToStorage();
-            renderKanban();
-            updateStats();
-            updateProjectOverview();
-        }
-        
-        showNotification('Naloga izbrisana', 'success');
+        const data = {
+            tasks,
+            events,
+            projects,
+            members,
+            currentUser,
+            lastSave: new Date().toISOString()
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        console.log('💾 Podatki shranjeni v localStorage');
     } catch (error) {
-        console.error("❌ Napaka pri brisanju naloge:", error);
-        showNotification('Napaka pri brisanju naloge', 'error');
+        console.error('❌ Napaka pri shranjevanju:', error);
+    }
+}
+
+async function loadFromStorage() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            tasks = parsed.tasks || [];
+            events = parsed.events || [];
+            projects = parsed.projects || [];
+            members = parsed.members || [];
+            currentUser = parsed.currentUser || currentUser;
+            
+            console.log(`📂 Naloženo iz localStorage: ${tasks.length} nalog, ${events.length} dogodkov, ${projects.length} projektov`);
+        } else {
+            // Demo podatki
+            tasks = [];
+            events = [];
+            projects = [];
+            members = [currentUser];
+            
+            // Dodaj demo projekt
+            projects.push({
+                id: 1,
+                name: 'Demo Projekt',
+                color: '#00a76d',
+                createdAt: new Date().toISOString(),
+                createdBy: currentUser
+            });
+        }
+    } catch (error) {
+        console.error('❌ Napaka pri nalaganju:', error);
     }
 }
 
 // ============================================
-// KANBAN FUNKCIONALNOSTI
+// KANBAN FUNKCIJE (delno že obstoječe, dodajmo manjkajoče)
 // ============================================
+
 function renderKanban() {
     const kanbanBoard = document.getElementById('kanbanBoard');
     if (!kanbanBoard) return;
@@ -784,8 +1215,8 @@ async function drop(event) {
             task.status = newStatus;
             task.updatedAt = new Date().toISOString();
             
-            if (firebaseInitialized) {
-                await firebaseService.updateTask(taskId, {
+            if (firebaseInitialized && window.firebaseService) {
+                await window.firebaseService.updateTask(taskId, {
                     status: newStatus,
                     updatedAt: task.updatedAt
                 });
@@ -981,101 +1412,6 @@ function updateLiveClock() {
 // ============================================
 // ROJSTNI DANI
 // ============================================
-function openBirthdayModal() {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = 'birthdayModal';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-            <h2><i class="fas fa-birthday-cake"></i> Dodaj Rojstni Dan</h2>
-            <form id="birthdayForm">
-                <div class="form-group">
-                    <label for="birthdayPerson">Ime in priimek *</label>
-                    <input type="text" id="birthdayPerson" class="form-control" required 
-                           placeholder="Vnesite ime osebe">
-                </div>
-                <div class="form-group">
-                    <label for="birthdayDate">Datum rojstnega dne *</label>
-                    <input type="date" id="birthdayDate" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="birthdayNotes">Opombe (izbirno)</label>
-                    <textarea id="birthdayNotes" class="form-control" rows="3" 
-                              placeholder="Dodatne informacije..."></textarea>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('birthdayModal')">Prekliči</button>
-                    <button type="submit" class="btn btn-birthday">Shrani Rojstni Dan</button>
-                </div>
-            </form>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    modal.style.display = 'flex';
-    
-    // Nastavi današnji datum
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('birthdayDate').value = today;
-    
-    // Event listener
-    document.getElementById('birthdayForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        await saveBirthday();
-    });
-}
-
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.remove();
-    }
-}
-
-async function saveBirthday() {
-    const person = document.getElementById('birthdayPerson').value.trim();
-    const date = document.getElementById('birthdayDate').value;
-    const notes = document.getElementById('birthdayNotes').value.trim();
-    
-    if (!person || !date) {
-        showNotification('Vnesite vsa obvezna polja', 'warning');
-        return;
-    }
-    
-    const birthdayEvent = {
-        id: Date.now(),
-        title: `🎂 ${person}`,
-        description: notes || `Rojstni dan ${person}`,
-        type: 'birthday',
-        startDate: new Date(date).toISOString(),
-        endDate: new Date(date + 'T23:59:59').toISOString(),
-        personName: person,
-        isRecurring: true,
-        recurringType: 'yearly',
-        birthdayYear: new Date(date).getFullYear(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-    };
-    
-    try {
-        if (firebaseInitialized) {
-            await firebaseService.saveEvent(birthdayEvent);
-        } else {
-            events.push(birthdayEvent);
-            saveToStorage();
-        }
-        
-        closeModal('birthdayModal');
-        showNotification(`Rojstni dan za ${person} shranjen!`, 'success');
-        renderCalendar();
-        loadUpcomingEvents();
-        
-    } catch (error) {
-        console.error("❌ Napaka pri shranjevanju rojstnega dne:", error);
-        showNotification('Napaka pri shranjevanju', 'error');
-    }
-}
-
 function checkBirthdays() {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0].substring(5); // MM-DD
@@ -1089,8 +1425,8 @@ function checkBirthdays() {
                 showBirthdayNotification(event);
                 event.notifiedThisYear = true;
                 
-                if (firebaseInitialized) {
-                    firebaseService.saveEvent(event);
+                if (firebaseInitialized && window.firebaseService) {
+                    window.firebaseService.saveEvent(event);
                 }
             }
         }
@@ -1112,109 +1448,6 @@ function showBirthdayNotification(event) {
     
     // Prikaži v aplikaciji
     showNotification(message, 'birthday');
-}
-
-// ============================================
-// INICIALIZACIJA UI
-// ============================================
-function initializeUI() {
-    // Prikaži projektni pregled
-    const overview = document.getElementById('projectOverviewContainer');
-    if (overview) overview.style.display = 'block';
-    
-    // Inicializiraj UI komponente
-    updateProjectSelectors();
-    renderKanban();
-    updateStats();
-    updateProjectOverview();
-    renderCalendar();
-    loadUpcomingEvents();
-    renderProjectsList();
-    renderMemberSelector();
-    updateAssigneeFilter();
-}
-
-function startPeriodicChecks() {
-    // Preveri rojstne dneve vsako uro
-    setInterval(checkBirthdays, 3600000);
-    
-    // Posodobi uro vsako sekundo
-    setInterval(updateLiveClock, 1000);
-    
-    // Posodobi projektni pregled vsakih 5 minut
-    setInterval(updateProjectOverview, 300000);
-    
-    // Preveri opomnike vsako minuto
-    setInterval(checkReminders, 60000);
-}
-
-function setupEventListeners() {
-    // Event listenerji za filtre
-    const searchInput = document.getElementById('searchTasks');
-    const priorityFilter = document.getElementById('filterPriority');
-    const assigneeFilter = document.getElementById('filterAssignee');
-    
-    if (searchInput) searchInput.addEventListener('input', renderKanban);
-    if (priorityFilter) priorityFilter.addEventListener('change', renderKanban);
-    if (assigneeFilter) assigneeFilter.addEventListener('change', renderKanban);
-    
-    // Zapri modal z ESC
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeTaskModal();
-            closeEventModal();
-            const birthdayModal = document.getElementById('birthdayModal');
-            if (birthdayModal) closeModal('birthdayModal');
-        }
-    });
-    
-    // Zapri modal s klikom zunaj
-    window.addEventListener('click', function(e) {
-        if (e.target.classList.contains('modal')) {
-            closeTaskModal();
-            closeEventModal();
-            const birthdayModal = document.getElementById('birthdayModal');
-            if (birthdayModal) closeModal('birthdayModal');
-        }
-    });
-}
-
-// ============================================
-// LOCALSTORAGE FUNKCIJE
-// ============================================
-function saveToStorage() {
-    try {
-        const data = {
-            tasks,
-            events,
-            projects,
-            members,
-            currentUser,
-            lastSave: new Date().toISOString()
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        console.log('💾 Podatki shranjeni v localStorage');
-    } catch (error) {
-        console.error('❌ Napaka pri shranjevanju:', error);
-    }
-}
-
-async function loadFromStorage() {
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            tasks = parsed.tasks || [];
-            events = parsed.events || [];
-            projects = parsed.projects || [];
-            members = parsed.members || [];
-            currentUser = parsed.currentUser || currentUser;
-            
-            console.log(`📂 Naloženo iz localStorage: ${tasks.length} nalog, ${events.length} dogodkov, ${projects.length} projektov`);
-        }
-    } catch (error) {
-        console.error('❌ Napaka pri nalaganju:', error);
-    }
 }
 
 // ============================================
