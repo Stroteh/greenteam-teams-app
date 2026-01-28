@@ -1,4 +1,36 @@
 // ============================================
+// NAVIGACIJA - MANJKAJOČA FUNKCIJA
+// ============================================
+function setupNavigation() {
+    const navButtons = document.querySelectorAll('.nav-btn');
+    if (!navButtons.length) return;
+    
+    navButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const section = this.dataset.section;
+            
+            // Odstrani active class od vseh gumbov
+            navButtons.forEach(b => b.classList.remove('active'));
+            
+            // Dodaj active trenutnemu gumbu
+            this.classList.add('active');
+            
+            // Skrij vse sekcije
+            document.querySelectorAll('.content-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            
+            // Prikaži ciljno sekcijo
+            const targetSection = document.getElementById(`${section}-section`);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+        });
+    });
+}
+
+
+// ============================================
 // GLOBALNE SPREMENLJIVKE
 // ============================================
 let tasks = [];
@@ -27,6 +59,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Zaženi aplikacijo v demo načinu za začetek
     await initializeAppDemoMode();
 });
+
+
 
 // Demo način za začetek (brez Teams in Firebase)
 async function initializeAppDemoMode() {
@@ -1514,3 +1548,4 @@ async function connectToTeams() {
         showNotification('Teams SDK ni na voljo. Odprite aplikacijo v Microsoft Teams.', 'warning');
     }
 }
+
