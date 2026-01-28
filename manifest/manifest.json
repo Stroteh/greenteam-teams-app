@@ -6,9 +6,9 @@
   "packageName": "com.greenteam.kanban",
   "developer": {
     "name": "GreenTeam",
-    "websiteUrl": "https://Stroteh.github.io/greenteam-teams-app",
-    "privacyUrl": "https://Stroteh.github.io/greenteam-teams-app/manifest/privacy.html",
-    "termsOfUseUrl": "https://Stroteh.github.io/greenteam-teams-app/manifest/terms.html"
+    "websiteUrl": "https://stroteh.github.io/greenteam-teams-app",
+    "privacyUrl": "https://stroteh.github.io/greenteam-teams-app/privacy.html",
+    "termsOfUseUrl": "https://stroteh.github.io/greenteam-teams-app/terms.html"
   },
   "name": {
     "short": "GreenTeam",
@@ -19,25 +19,24 @@
     "full": "GreenTeam aplikacija za sledenje projektom in nalogam z integracijo kanban tablice, koledarja in dnevnikov aktivnosti."
   },
   "icons": {
-    "outline": "icon-outline.png",
-    "color": "icon-color.png"
+    "outline": "https://stroteh.github.io/greenteam-teams-app/icons/outline.png",
+    "color": "https://stroteh.github.io/greenteam-teams-app/icons/color.png"
   },
   "accentColor": "#00A76D",
   "staticTabs": [
     {
       "entityId": "greenteam-kanban",
       "name": "GreenTeam",
-      "contentUrl": "https://Stroteh.github.io/greenteam-teams-app",
-      "websiteUrl": "https://Stroteh.github.io/greenteam-teams-app",
+      "contentUrl": "https://stroteh.github.io/greenteam-teams-app/index.html?inTeams=1",
+      "websiteUrl": "https://stroteh.github.io/greenteam-teams-app",
       "scopes": ["personal"]
     }
   ],
   "permissions": ["identity", "messageTeamMembers"],
   "validDomains": [
-    "Stroteh.github.io",
+    "stroteh.github.io",
     "*.firebaseapp.com",
     "*.firebaseio.com",
     "*.googleapis.com"
   ]
 }
-
