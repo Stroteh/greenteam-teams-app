@@ -17,7 +17,503 @@ jobs:
     steps:
     # 1. Checkout koda
     - name: Checkout repository
+      uses: actions/checkout@v4name: Deploy GreenTeam to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 1. Checkout koda
+    - name: Checkout repository
       uses: actions/checkout@v4
+    
+    # 2. Setup Node.js
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    # 3. List files for debugging
+    - name: Debug - List files
+      run: |
+        echo "📁 Repository structure:"
+        ls -la
+        echo ""
+        echo "📂 Files in root:"
+        find . -maxdepth 1 -type f -name "*.*" | sort
+    
+    # 4. Preveri potrebne datoteke
+    - name: Check required files
+      run: |
+        echo "🔍 Checking required files..."
+        required_files=("index.html" "style.css" "firebase-service.js" "funkcije.js")
+        for file in "${required_files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ $file exists"
+          else
+            echo "❌ $file is missing!"
+            exit 1
+          fi
+        done
+    
+    # 5. Kreiraj teams-integration.js če ne obstaja
+    - name: Check or create teams-integration.js
+      run: |
+        echo "👥 Checking teams-integration.js..."
+        if [ ! -f "teams-integration.js" ]; then
+          echo "📝 Creating teams-integration.js..."
+          cat > teams-integration.js << 'EOF'
+// teams-integration.js - Besplatna Teams integracija brez Azure
+
+class TeamsIntegration {
+    constructor() {
+        this.isInitialized = false;
+        this.context = null;
+        this.members = [];
+        console.log("👥 TeamsIntegration kreiran");
+    }
+
+    async initialize() {
+        try {
+            console.log("🚀 Inicializiram Teams...");
+            
+            if (typeof microsoftTeams === 'undefined') {
+                console.warn("⚠️ Teams SDK ni na voljo");
+                return false;
+            }
+            
+            await microsoftTeams.app.initialize();
+            
+            // Pridobi Teams kontekst
+            this.context = await microsoftTeams.app.getContext();
+            console.log("✅ Teams kontekst pridobljen:", this.context);
+            
+            // Obdelaj kontekst
+            this.processContext();
+            
+            this.isInitialized = true;
+            return true;
+            
+        } catch (error) {
+            console.error("❌ Napaka pri inicializaciji Teams:", error);
+            return false;
+        }
+    }
+
+    processContext() {
+        if (!this.context) return;
+        
+        const user = this.context.user || {};
+        const team = this.context.team || {};
+        
+        // Ustvari naš format uporabnika
+        this.currentUser = {
+            id: user.id || `teams_${Date.now()}`,
+            name: user.displayName || 'Teams Uporabnik',
+            email: user.userPrincipalName || '',
+            initials: this.getInitials(user.displayName || 'TU'),
+            teamsId: user.id,
+            tenantId: user.tenantId,
+            isTeamsUser: true,
+            photoUrl: user.photoUrl,
+            teamId: team.id || 'personal',
+            teamName: team.displayName || 'Personal'
+        };
+        
+        console.log("👤 Trenutni uporabnik:", this.currentUser.name);
+        
+        // Samo trenutni uporabnik za začetek
+        this.members = [this.currentUser];
+    }
+
+    getInitials(name) {
+        return name.split(' ')
+            .map(part => part[0])
+            .join('')
+            .toUpperCase()
+            .substring(0, 2) || 'TU';
+    }
+
+    async getContextForFirebase() {
+        return {
+            user: this.currentUser,
+            team: {
+                id: this.currentUser.teamId,
+                name: this.currentUser.teamName
+            }
+        };
+    }
+
+    // Ročno dodajanje članov
+    async addMemberManually(memberData) {
+        try {
+            const newMember = {
+                id: `manual_${Date.now()}`,
+                name: memberData.name,
+                email: memberData.email || '',
+                initials: this.getInitials(memberData.name),
+                isTeamsUser: false,
+                isManual: true,
+                addedBy: this.currentUser.id,
+                addedAt: new Date().toISOString(),
+                teamId: this.currentUser.teamId
+            };
+            
+            this.members.push(newMember);
+            console.log("✅ Ročno dodan član:", newMember.name);
+            return newMember;
+            
+        } catch (error) {
+            console.error("❌ Napaka pri dodajanju člana:", error);
+            throw error;
+        }
+    }
+
+    // Preveri dovoljenja
+    checkPermissions() {
+        return {
+            canAccessTeams: this.isInitialized,
+            hasTeam: !!this.currentUser?.teamId && this.currentUser.teamId !== 'personal',
+            user: this.currentUser
+        };
+    }
+
+    // Prikaži obvestilo v Teams
+    showNotification(message, title = 'GreenTeam') {
+        if (!this.isInitialized) return;
+        
+        try {
+            microsoftTeams.tasks.submitTask({
+                title: title,
+                message: message
+            });
+        } catch (error) {
+            console.warn("Ne morem prikazati Teams obvestila:", error);
+        }
+    }
+}
+
+// Globalna instanca
+const teamsIntegration = new TeamsIntegration();
+EOF
+          echo "✅ teams-integration.js ustvarjen"
+        else
+          echo "✅ teams-integration.js že obstaja"
+        fi
+    
+    # 6. Kreiraj Firebase config datoteko
+    - name: Generate Firebase Configuration
+      run: |
+        echo "🚀 Ustvarjam firebase-config.js..."
+        
+        cat > firebase-config.js << 'EOF'
+// ============================================
+// FIREBASE KONFIGURACIJA
+// Avtomatsko generirano z GitHub Actions
+// ============================================
+
+window.firebaseConfig = {
+  apiKey: '${{ secrets.FIREBASE_API_KEY }}',
+  authDomain: '${{ secrets.FIREBASE_AUTH_DOMAIN }}',
+  projectId: '${{ secrets.FIREBASE_PROJECT_ID }}',
+  storageBucket: '${{ secrets.FIREBASE_STORAGE_BUCKET }}',
+  messagingSenderId: '${{ secrets.FIREBASE_SENDER_ID }}',
+  appId: '${{ secrets.FIREBASE_APP_ID }}'
+};
+
+console.log('🔥 Firebase konfiguracija naložena iz GitHub Actions');
+EOF
+        
+        echo "✅ firebase-config.js ustvarjen"
+        echo "📄 Vsebina:"
+        cat firebase-config.js
+    
+    # 7. Preveri/ustvari manifest folder
+    - name: Check or create manifest
+      run: |
+        echo "📁 Preverjam manifest mapo..."
+        
+        if [ -d "manifest" ]; then
+          echo "✅ Manifest mapa obstaja"
+        else
+          echo "📝 Ustvarjam manifest mapo..."
+          mkdir -p manifest
+        fi
+        
+        # Preveri ali ikone obstajajo, če ne jih prenesi
+        if [ ! -f "manifest/icon-color.png" ]; then
+          echo "🎨 Prenasljam barvno ikono..."
+          curl -s -o manifest/icon-color.png "https://img.icons8.com/color/192/000000/task.png" || echo "⚠️ Ne morem prenesti ikone"
+        fi
+        
+        if [ ! -f "manifest/icon-outline.png" ]; then
+          echo "🎨 Prenasljam obrisno ikono..."
+          curl -s -o manifest/icon-outline.png "https://img.icons8.com/ios/32/00a76d/task.png" || echo "⚠️ Ne morem prenesti ikone"
+        fi
+        
+        # Ustvari manifest.json
+        echo "📝 Ustvarjam manifest.json..."
+        
+        # Uporabimo GitHub environment variables
+        REPO_OWNER='${{ github.repository_owner }}'
+        REPO_NAME='${{ github.event.repository.name }}'
+        APP_URL="https://${REPO_OWNER}.github.io/${REPO_NAME}"
+        
+        cat > manifest/manifest.json << EOF
+{
+  "\$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "packageName": "com.greenteam.kanban",
+  "developer": {
+    "name": "GreenTeam",
+    "websiteUrl": "${APP_URL}",
+    "privacyUrl": "${APP_URL}/manifest/privacy.html",
+    "termsOfUseUrl": "${APP_URL}/manifest/terms.html"
+  },
+  "name": {
+    "short": "GreenTeam",
+    "full": "GreenTeam Kanban & Koledar"
+  },
+  "description": {
+    "short": "Kanban in koledar za projektno vodenje",
+    "full": "GreenTeam aplikacija za sledenje projektom in nalogam z integracijo kanban tablice, koledarja in dnevnikov aktivnosti."
+  },
+  "icons": {
+    "outline": "icon-outline.png",
+    "color": "icon-color.png"
+  },
+  "accentColor": "#00A76D",
+  "staticTabs": [
+    {
+      "entityId": "greenteam-kanban",
+      "name": "GreenTeam",
+      "contentUrl": "${APP_URL}",
+      "websiteUrl": "${APP_URL}",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": [
+    "*.github.io",
+    "*.firebaseapp.com",
+    "*.firebaseio.com",
+    "*.googleapis.com"
+  ]
+}
+EOF
+        
+        echo "✅ Manifest.json ustvarjen"
+        
+        # Ustvari privacy.html če ne obstaja
+        if [ ! -f "manifest/privacy.html" ]; then
+          echo "📝 Ustvarjam privacy.html..."
+          cat > manifest/privacy.html << 'EOF'
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Politika zasebnosti - GreenTeam</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #00a76d; }
+        h2 { color: #333; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <h1>Politika zasebnosti za GreenTeam</h1>
+    
+    <p><strong>Zadnja posodobitev:</strong> $(date +'%d. %m. %Y')</p>
+    
+    <h2>1. Uvod</h2>
+    <p>GreenTeam je odprtokodna aplikacija za upravljanje projektov, ki je na voljo brezplačno. Ta politika zasebnosti pojasnjuje, kako ravnamo z vašimi podatki.</p>
+    
+    <h2>2. Podatki, ki jih zbíramo</h2>
+    <p>Aplikacija GreenTeam:</p>
+    <ul>
+        <li><strong>Ne zbira osebnih podatkov</strong> brez vašega soglasja</li>
+        <li>Vse naloge, projekti in dogodki so shranjeni v vašem brskalniku (localStorage) ali v Firebase za sinhronizacijo</li>
+        <li>Če uporabljate aplikacijo v Microsoft Teams, lahko vidite samo podatke, ki so vam dostopni v Teams</li>
+    </ul>
+    
+    <h2>3. Firebase Storitev</h2>
+    <p>Za sinhronizacijo podatkov med napravami uporabljamo Google Firebase. Firebase je varno okolje, ki uporablja šifriranje za vse podatke v prenosu.</p>
+    <p>Firebase podatki so dostopni samo osebam, ki imajo dostop do vašega Teams tima (če uporabljate Teams) ali samo vam (če uporabljate personal način).</p>
+    
+    <h2>4. Microsoft Teams Integracija</h2>
+    <p>Ko uporabljate GreenTeam v Microsoft Teams:</p>
+    <ul>
+        <li>Vidite samo svoje ime iz Teams profila</li>
+        <li>Aplikacija ne zbira dodatnih podatkov iz Teams</li>
+        <li>Vsi podatki ostanejo znotraj vaše organizacije</li>
+    </ul>
+    
+    <h2>5. Piškotki in sledenje</h2>
+    <p>GreenTeam ne uporablja piškotkov za sledenje. Za delovanje aplikacije uporablja samo tehnično potrebne shrambe podatkov v brskalniku.</p>
+    
+    <h2>6. Pravice uporabnikov</h2>
+    <p>Kot uporabnik imate pravico do:</p>
+    <ul>
+        <li>Dostopa do svojih podatkov</li>
+        <li>Brisanja svojih podatkov (izbrišejo se z brisanjem localStorage ali Firebase podatkov)</li>
+        <li>Uporabe aplikacije brez sledenja</li>
+    </ul>
+    
+    <h2>7. Kontakt</h2>
+    <p>Za vprašanja o zasebnosti lahko ustvarite Issue na GitHub repozitoriju: <a href="https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}">GitHub Repozitorij</a></p>
+    
+    <h2>8. Spremembe politike</h2>
+    <p>To politiko zasebnosti lahko posodabljamo. Spremembe bodo objavljene na tej strani.</p>
+</body>
+</html>
+EOF
+          echo "✅ privacy.html ustvarjen"
+        fi
+        
+        # Ustvari terms.html če ne obstaja
+        if [ ! -f "manifest/terms.html" ]; then
+          echo "📝 Ustvarjam terms.html..."
+          cat > manifest/terms.html << 'EOF'
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pogoji uporabe - GreenTeam</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #00a76d; }
+        h2 { color: #333; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <h1>Pogoji uporabe za GreenTeam</h1>
+    
+    <p><strong>Zadnja posodobitev:</strong> $(date +'%d. %m. %Y')</p>
+    
+    <h2>1. Sprejem pogojev</h2>
+    <p>Z uporabo aplikacije GreenTeam se strinjate s temi pogoji uporabe. Če se ne strinjate, ne uporabljajte aplikacije.</p>
+    
+    <h2>2. Opis storitve</h2>
+    <p>GreenTeam je brezplačna, odprtokodna aplikacija za:</p>
+    <ul>
+        <li>Upravljanje projektov z Kanban tablico</li>
+        <li>Koledar za dogodke in rojstne dneve</li>
+        <li>Sinhronizacijo podatkov med napravami preko Firebase</li>
+        <li>Integracijo z Microsoft Teams</li>
+    </ul>
+    
+    <h2>3. Pravice uporabe</h2>
+    <p>Dovoljenje za uporabo:</p>
+    <ul>
+        <li>GreenTeam je na voljo pod MIT licenco</li>
+        <li>Uporabite lahko aplikacijo za osebne in poslovne namene</li>
+        <li>Uporaba je brezplačna</li>
+        <li>Lahko modificirate kodo v skladu z MIT licenco</li>
+    </ul>
+    
+    <h2>4. Odgovornost</h2>
+    <p><strong>OPOZORILO:</strong> Aplikacija je na voljo "kot je" (AS IS) brez kakršnih koli jamstev.</p>
+    <ul>
+        <li>Avtorji ne prevzemajo odgovornosti za izgubo podatkov</li>
+        <li>Uporabnik je odgovoren za varnost svojih podatkov</li>
+        <li>Priporočamo redno varnostno kopiranje podatkov</li>
+    </ul>
+    
+    <h2>5. Omejitve uporabe</h2>
+    <p>Prepovedano je:</p>
+    <ul>
+        <li>Uporaba aplikacije za nezakonite namene</li>
+        <li>Oglaševanje ali predstavljanje aplikacije kot lastne</li>
+        <li>Poškodovanje ali onemogočanje delovanja aplikacije</li>
+    </ul>
+    
+    <h2>6. Spremembe aplikacije</h2>
+    <p>GreenTeam se lahko kadarkoli spremeni brez predhodnega obvestila. Funkcionalnosti se lahko dodajajo ali odstranjujejo.</p>
+    
+    <h2>7. Prekinitev uporabe</h2>
+    <p>Avtorji lahko kadarkoli prekinejo dostop do aplikacije, če uporabnik krši te pogoje.</p>
+    
+    <h2>8. Pravno obvestilo</h2>
+    <p>GreenTeam je odprtokodni projekt. Za podporo in vprašanja uporabite GitHub Issues.</p>
+    
+    <h2>9. Kontakt</h2>
+    <p>Za vprašanja glede pogojev uporabe ustvarite Issue na: <a href="https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}">GitHub Repozitorij</a></p>
+</body>
+</html>
+EOF
+          echo "✅ terms.html ustvarjen"
+        fi
+        
+        echo "📋 Vsebina manifest mape:"
+        ls -la manifest/
+    
+    # 8. Kreiraj Teams package
+    - name: Create Teams Package
+      run: |
+        echo "📦 Ustvarjam Teams paket..."
+        
+        if [ -d "manifest" ]; then
+          cd manifest
+          zip -r ../teams-app-package.zip *
+          cd ..
+          echo "✅ Teams paket ustvarjen"
+          echo "📊 Velikost paketa:"
+          ls -lh teams-app-package.zip
+        else
+          echo "❌ Manifest mapa ne obstaja - ne morem ustvariti Teams paketa"
+          exit 1
+        fi
+    
+    # 9. Upload Teams package kot artifact
+    - name: Upload Teams Package
+      uses: actions/upload-artifact@v4
+      with:
+        name: teams-app-package
+        path: teams-app-package.zip
+        retention-days: 7
+    
+    # 10. Deploy na GitHub Pages
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: .
+        keep_files: true
+        force_orphan: false
+    
+    # 11. Success message
+    - name: Success Notification
+      run: |
+        echo "🎉 Uspešno razširjeno!"
+        echo "🌐 URL aplikacije: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+        echo "📦 Teams paket na voljo v Artifacts"
+        echo ""
+        echo "📋 Naslednji koraki:"
+        echo "1. Ustvari Firebase projekt: https://console.firebase.google.com/"
+        echo "2. Dodaj Web aplikacijo in kopiraj konfiguracijo"
+        echo "3. Dodaj konfiguracijo v GitHub Secrets:"
+        echo "   - FIREBASE_API_KEY"
+        echo "   - FIREBASE_AUTH_DOMAIN"
+        echo "   - FIREBASE_PROJECT_ID"
+        echo "   - FIREBASE_STORAGE_BUCKET"
+        echo "   - FIREBASE_SENDER_ID"
+        echo "   - FIREBASE_APP_ID"
+        echo "4. Prenesi teams-app-package.zip iz Artifacts"
+        echo "5. Uploadaj v Teams Developer Portal"
     
     # 2. Setup Node.js
     - name: Setup Node.js
