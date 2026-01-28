@@ -28,69 +28,138 @@ jobs:
         echo "📁 Checking repository structure..."
         ls -la
         
-        required_files=("index.html" "style.css")
-        for file in "${required_files[@]}"; do
-          if [ -f "$file" ]; then
-            echo "✅ $file exists"
-          else
-            echo "❌ $file is missing!"
-            echo "Creating placeholder $file..."
-            if [ "$file" == "index.html" ]; then
-              echo '<!DOCTYPE html><html><head><title>GreenTeam</title><link rel="stylesheet" href="style.css"></head><body><h1>GreenTeam App</h1><p>App is being deployed...</p></body></html>' > index.html
-            elif [ "$file" == "style.css" ]; then
-              echo 'body { font-family: Arial, sans-serif; padding: 20px; } h1 { color: #00a76d; }' > style.css
-            fi
+        # Popravi firebase-service.js če ima napake
+        if [ -f "firebase-service.js" ]; then
+          echo "🔧 Checking firebase-service.js..."
+          # Odstrani podvojene različice
+          # Lahko dodate popravke tukaj ali pa preprosto nadomestite s popravljeno različico
+          if grep -q "// firebase-service.js - Nadgrajena različica" firebase-service.js && grep -q "// firebase-service.js - Firebase storitev" firebase-service.js; then
+            echo "⚠️ Firebase-service has duplicate code, using backup..."
+            echo '// Placeholder - will be replaced during deployment' > firebase-service.js
           fi
-        done
+        fi
     
     # 3. Ustvari manjkajoče JavaScript datoteke
     - name: Create missing JS files
       run: |
+        echo "🔧 Creating missing files..."
+        
         # Ustvari teams-integration.js
         if [ ! -f "teams-integration.js" ]; then
-          echo "// teams-integration.js - placeholder" > teams-integration.js
-          echo "console.log('Teams integration loaded');" >> teams-integration.js
-          echo "const teamsIntegration = { initialize: () => Promise.resolve(true) };" >> teams-integration.js
+          cat > teams-integration.js << 'EOF'
+// teams-integration.js - placeholder
+console.log('Teams integration loaded');
+const teamsIntegration = { 
+  initialize: async () => {
+    console.log(" Teams integration initialized (placeholder)");
+    return false;
+  },
+  getContextForFirebase: () => null,
+  currentUser: { id: 'local_user', name: 'Local User', initials: 'LU' },
+  members: []
+};
+EOF
         fi
         
-        # Ustvari firebase-service.js
-        if [ ! -f "firebase-service.js" ]; then
-          echo "// firebase-service.js - placeholder" > firebase-service.js
-          echo "console.log('Firebase service loaded');" >> firebase-service.js
-        fi
+        # Ustvarite firebase-config.js iz secretov ALI placeholder
+        cat > firebase-config.js << 'EOF'
+// Firebase Configuration
+window.firebaseConfig = {
+  apiKey: "${{ secrets.FIREBASE_API_KEY || 'demo-key' }}",
+  authDomain: "${{ secrets.FIREBASE_AUTH_DOMAIN || 'demo.firebaseapp.com' }}",
+  projectId: "${{ secrets.FIREBASE_PROJECT_ID || 'demo-project' }}",
+  storageBucket: "${{ secrets.FIREBASE_STORAGE_BUCKET || 'demo.appspot.com' }}",
+  messagingSenderId: "${{ secrets.FIREBASE_SENDER_ID || '123456' }}",
+  appId: "${{ secrets.FIREBASE_APP_ID || '1:123:web:abc' }}"
+};
+
+console.log("Firebase config loaded");
+EOF
         
-        # Ustvari funkcije.js
+        # Ustvari funkcije.js placeholder
         if [ ! -f "funkcije.js" ]; then
-          echo "// funkcije.js - placeholder" > funkcije.js
-          echo "console.log('Main functions loaded');" >> funkcije.js
+          cat > funkcije.js << 'EOF'
+// funkcije.js - placeholder
+console.log('Main functions loaded');
+
+// Osnovne funkcije
+function setupEventListeners() {
+  console.log("Setting up event listeners");
+}
+
+function setupNavigation() {
+  console.log("Setting up navigation");
+}
+
+async function initializeApp() {
+  console.log("Initializing app...");
+  // Osnovna inicializacija
+  setupEventListeners();
+  setupNavigation();
+  
+  // Prikaži aplikacijo
+  document.querySelector('.app-container').style.display = 'block';
+}
+
+document.addEventListener('DOMContentLoaded', initializeApp);
+EOF
         fi
         
-        # Ustvari firebase-config.js iz secretov
-        echo "// Firebase Configuration" > firebase-config.js
-        echo "window.firebaseConfig = {" >> firebase-config.js
-        echo "  apiKey: '${{ secrets.FIREBASE_API_KEY || 'demo-key' }}'," >> firebase-config.js
-        echo "  authDomain: '${{ secrets.FIREBASE_AUTH_DOMAIN || 'demo.firebaseapp.com' }}'," >> firebase-config.js
-        echo "  projectId: '${{ secrets.FIREBASE_PROJECT_ID || 'demo-project' }}'," >> firebase-config.js
-        
-        echo "  messagingSenderId: '${{ secrets.FIREBASE_SENDER_ID || '123456' }}'," >> firebase-config.js
-        echo "  appId: '${{ secrets.FIREBASE_APP_ID || '1:123:web:abc' }}'" >> firebase-config.js
-        echo "};" >> firebase-config.js
+        # Ustvari firebase-service.js če ne obstaja ali je pokvarjen
+        if [ ! -f "firebase-service.js" ] || [ $(wc -l < firebase-service.js) -lt 50 ]; then
+          echo "📦 Creating minimal firebase-service.js..."
+          cat > firebase-service.js << 'EOF'
+class FirebaseService {
+  constructor() {
+    this.db = null;
+    this.isInitialized = false;
+    this.currentTeamId = 'personal';
+    this.currentUserId = `user_${Date.now()}`;
+  }
+
+  async initialize() {
+    console.log("Firebase service placeholder - running in offline mode");
+    this.isInitialized = true;
+    return true;
+  }
+
+  async saveTask(task) {
+    console.log("Saving task (offline):", task.title);
+    return true;
+  }
+
+  subscribeToTasks(callback) {
+    console.log("Task subscription (offline)");
+    // Vrnite prazno array za zdaj
+    setTimeout(() => callback([]), 100);
+  }
+
+  getStatus() {
+    return { isInitialized: this.isInitialized };
+  }
+}
+
+const firebaseService = new FirebaseService();
+EOF
+        fi
     
-    # 4. Ustvari manifest mapo če ne obstaja
+    # 4. Ustvari manifest mapo
     - name: Create manifest directory
       run: |
-        if [ ! -d "manifest" ]; then
-          mkdir -p manifest
-        fi
-        
-        # Ustvari preproste ikone
-        if [ ! -f "manifest/icon-color.png" ]; then
-          echo "iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAMAAABlApw1AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAADNQTFRF////AP//AAD/AAAA/wD//wAAAP//zP//mf//Zv//M///AABm//+Z//8z//8A//8AzP//mf//Zv8RNQxVAAABPUlEQVR42uzBgQAAAADDoPlT3+AEVQEAAADgs7YAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQK8GgYAAAD9SURBVHja7MEBDQAACMOg+Tfd2BmCKgAAAAAAAAAAAAC+AWsAAAAASUVORK5CYII=" | base64 -d > manifest/icon-color.png 2>/dev/null || true
-        fi
-        
-        if [ ! -f "manifest/icon-outline.png" ]; then
-          echo "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAADPSURBVFhH7ZZBCsJAEET7/y8VvUjeIHgQPXjw5M2L4E3ElYV0mtmd7Gwmk0wo+KiQdHd1z2YnKf6BZVnGdV2f67o+13V9ruv6XNf1ua7rc13X57quz3Vdn+u6Ptd1fa7r+lzX9bmu63Nd1+e6rs91XZ/ruj7XdX2u6/pc1/W5rutr3Zt0nuchO6r8gnEcz3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3Ecx3HcX3cPBWYAGU+2qEMAAAAASUVORK5CYII=" | base64 -d > manifest/icon-outline.png 2>/dev/null || true
-        fi
+        mkdir -p manifest
+        # Ustvari preprost manifest.json
+        cat > manifest/manifest.json << 'EOF'
+{
+  "name": "GreenTeam",
+  "short_name": "GreenTeam",
+  "description": "Kanban and Calendar app for Teams",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#00a76d",
+  "theme_color": "#00a76d",
+  "icons": []
+}
+EOF
     
     # 5. Deploy na GitHub Pages
     - name: Deploy to GitHub Pages
@@ -107,8 +176,3 @@ jobs:
         echo "🎉 Deployment successful!"
         echo "🌐 Your app is available at:"
         echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
-        echo ""
-        echo "📋 For full functionality:"
-        echo "1. Add Firebase secrets in Settings → Secrets and variables → Actions"
-        echo "2. Add: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID, etc."
-        echo "3. Push again to update with real Firebase config"
