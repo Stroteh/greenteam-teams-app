@@ -1,21 +1,16 @@
-# GreenTeam za Microsoft Teams
+# GreenTeam - Besplatna Teams Aplikacija
 
-![GreenTeam Logo](manifest/icon-color.png)
+ **Projektno vodenje z Kanban tablico in koledarjem za Microsoft Teams**
 
-Kanban tablica in koledar aplikacija za Microsoft Teams z upravljanjem projektov in dnevimi nalogami.
+##  Funkcionalnosti
 
-## 🚀 Funkcionalnosti
+ **Kanban tablica** s 4 stolpci (Todo, V teku, Pregled, Opravljeno)  
+ **Koledar** z mesečnim pregledom dogodkov  
+ **Rojstni dnevi** z avtomatskimi opomniki  
+ **Več izvajalcev** za vsako nalogo  
+ **Projektni pregled** s prioriteto  
+ **Teams integracija** (brez Azure stroškov)  
+ **Firebase sinhronizacija** v realnem času  
+ **Osebni avatar** s statistikami  
+ **Responsive design** za vse naprave  
 
-- ✅ **Kanban Board** s 4 stolpci
-- 📅 **Koledar** z mesečnim pregledom
-- 📝 **Dnevne naloge** in opomniki
-- 🏗️ **Upravljanje projektov**
-- 🔔 **Obveščanja** in opomniki
-- 👥 **Teams integracija**
-
-## 🛠️ Namestitev
-
-### Za razvijalce
-1. Klonirajte repozitorij:
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/greenteam-teams-app.git
