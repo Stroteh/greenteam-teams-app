@@ -37,4 +37,4 @@ Dodaj te Secrets v GitHub Repository:
 3. Uploadaj `teams-app-package.zip` (se ustvari samodejno)
 4. Testiraj v Teams Desktop/Web App
 
-##  Projekta struktura
+
