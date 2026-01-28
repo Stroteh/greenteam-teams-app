@@ -1,26 +1,4 @@
 // firebase-service.js - Nadgrajena različica za več izvajalcev
-
-class FirebaseService {
-    constructor() {
-        this.db = null;
-        this.isInitialized = false;
-        this.currentTeamId = null;
-        this.currentUserId = null;
-        console.log(" FirebaseService kreiran");
-    }
-
-    async initialize(teamsContext = null) {
-        console.log(" FirebaseService se pokreće...");
-        
-        try {
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            this.db = firebase.firestore();
-            
-            // Nastavi Firestore nastavitve za boljšo offline podporo
-            firebase.firestore().enablePersistence()// firebase-service.js - Firebase storitev za GreenTeam
-
 class FirebaseService {
     constructor() {
         this.db = null;
