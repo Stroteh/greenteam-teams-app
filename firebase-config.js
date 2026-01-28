@@ -6,5 +6,10 @@ window.firebaseConfig = {
     messagingSenderId: "FIREBASE_MESSAGING_SENDER_ID",
     appId: "FIREBASE_APP_ID",
     storageBucket: "FIREBASE_STORAGE_BUCKET"
-    
 };
+
+
+// console.log za debugging (opcijsko)
+if (window.firebaseConfig) {
+    console.log("✅ Firebase konfiguracija naložena");
+}
