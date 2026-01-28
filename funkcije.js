@@ -1,5 +1,3 @@
-
-
 // ============================================
 // GLOBALNE SPREMENLJIVKE
 // ============================================
@@ -122,8 +120,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     await initializeAppDemoMode();
 });
 
-
-
 // Demo način za začetek (brez Teams in Firebase)
 async function initializeAppDemoMode() {
     try {
@@ -142,20 +138,41 @@ async function initializeAppDemoMode() {
         // 2. Posodobi avatar
         updateUserAvatar();
         
-        // 3. Preveri Firebase
-        firebaseInitialized = false;
-        console.log("ℹ️ Demo način - uporabljam localStorage");
+        // 3. Poskusi inicializirati Firebase, če je možno
+        try {
+            if (window.firebaseService && window.firebaseConfig) {
+                console.log("🔄 Poskušam inicializirati Firebase...");
+                const teamsContext = null; // Ni Teams
+                firebaseInitialized = await firebaseService.initialize(teamsContext);
+                
+                if (firebaseInitialized) {
+                    console.log("✅ Firebase uspešno inicializiran");
+                    
+                    // Nastavi real-time osluškivanje
+                    setupFirebaseListeners();
+                    
+                    // Sinhroniziraj podatke
+                    await syncDataWithFirebase();
+                } else {
+                    console.log("ℹ️ Firebase ni inicializiran, uporabljam localStorage");
+                    await loadFromStorage();
+                }
+            } else {
+                console.log("ℹ️ FirebaseService ni na voljo, uporabljam localStorage");
+                await loadFromStorage();
+            }
+        } catch (firebaseError) {
+            console.error("⚠️ Firebase napaka:", firebaseError);
+            await loadFromStorage();
+        }
         
-        // 4. Naloži iz localStorage
-        await loadFromStorage();
-        
-        // 5. Inicializiraj UI
+        // 4. Inicializiraj UI
         initializeUI();
         
-        // 6. Zaženi periodične preverjanja
+        // 5. Zaženi periodične preverjanja
         startPeriodicChecks();
         
-        console.log("🎉 Aplikacija uspešno zagnana v demo načinu!");
+        console.log("🎉 Aplikacija uspešno zagnana!");
         
     } catch (error) {
         console.error("❌ Napaka pri zagonu aplikacije:", error);
@@ -164,7 +181,7 @@ async function initializeAppDemoMode() {
 }
 
 // ============================================
-// KOLEDAR FUNKCIJE (MANJKAJOČE)
+// KOLEDAR FUNKCIJE
 // ============================================
 
 let calendarCurrentMonth = new Date().getMonth();
@@ -217,7 +234,7 @@ function renderCalendar() {
             return eventDate.getDate() === day && 
                    eventDate.getMonth() === calendarCurrentMonth &&
                    eventDate.getFullYear() === calendarCurrentYear;
-        }).slice(0, 3); // Prikaži max 3 dogodke na dan
+        }).slice(0, 3);
         
         const moreEvents = events.filter(event => {
             const eventDate = new Date(event.startDate);
@@ -248,7 +265,7 @@ function renderCalendar() {
     }
     
     // Prazni prostor za konec meseca
-    const totalCells = 42; // 6 vrstic x 7 stolpcev
+    const totalCells = 42;
     const usedCells = firstDayIndex + daysInMonth;
     for (let i = usedCells; i < totalCells; i++) {
         calendarHTML += `<div class="calendar-day other-month"></div>`;
@@ -369,7 +386,6 @@ function openEventModal(eventId = null, day = null, month = null, year = null) {
         document.getElementById('eventSubmitBtn').textContent = 'Dodaj dogodek';
         document.getElementById('eventForm').reset();
         
-        // Če imamo dan, nastavi začetni datum
         if (day !== null) {
             const date = new Date(year, month, day, 9, 0);
             document.getElementById('eventStartDate').value = formatDateTimeLocal(date);
@@ -377,7 +393,6 @@ function openEventModal(eventId = null, day = null, month = null, year = null) {
             const endDate = new Date(year, month, day, 10, 0);
             document.getElementById('eventEndDate').value = formatDateTimeLocal(endDate);
         } else {
-            // Nastavi začetek čez 1 uro in konec čez 2 uri
             const start = new Date();
             start.setHours(start.getHours() + 1, 0, 0, 0);
             const end = new Date(start.getTime() + 60 * 60 * 1000);
@@ -421,7 +436,6 @@ document.getElementById('eventForm').addEventListener('submit', async function(e
     }
     
     if (editingEventId) {
-        // Urejanje obstoječega dogodka
         const eventIndex = events.findIndex(e => e.id === editingEventId);
         if (eventIndex !== -1) {
             const project = projects.find(p => p.id == projectId);
@@ -448,7 +462,6 @@ document.getElementById('eventForm').addEventListener('submit', async function(e
             }
         }
     } else {
-        // Nov dogodek
         const project = projects.find(p => p.id == projectId);
         
         const newEvent = {
@@ -555,7 +568,7 @@ function loadUpcomingEvents() {
 }
 
 // ============================================
-// PROJEKTI FUNKCIJE (MANJKAJOČE)
+// PROJEKTI FUNKCIJE
 // ============================================
 
 function updateProjectSelectors() {
@@ -696,11 +709,9 @@ function addProject() {
         saveToStorage();
     }
     
-    // Počisti polja
     if (nameInput) nameInput.value = '';
     if (colorInput) colorInput.value = '#00a76d';
     
-    // Posodobi UI
     updateProjectSelectors();
     renderProjectsList();
     updateProjectOverview();
@@ -728,7 +739,6 @@ function editProject(projectId) {
         saveToStorage();
     }
     
-    // Posodobi vse naloge tega projekta
     tasks.forEach(task => {
         if (task.projectId == projectId) {
             task.projectName = newName;
@@ -747,7 +757,6 @@ function deleteProject(projectId) {
     if (!confirm('Ali ste prepričani, da želite izbrisati ta projekt? Naloge tega projekta bodo premaknjene v Splošno.')) return;
     
     try {
-        // Premakni naloge v Splošno
         tasks.forEach(task => {
             if (task.projectId == projectId) {
                 task.projectId = 'general';
@@ -755,11 +764,9 @@ function deleteProject(projectId) {
             }
         });
         
-        // Izbriši projekt
         projects = projects.filter(p => p.id != projectId);
         
         if (firebaseInitialized && window.firebaseService) {
-            // Posodobi naloge v Firebase
             tasks.filter(t => t.projectId == 'general').forEach(async task => {
                 await window.firebaseService.updateTask(task.id, {
                     projectId: 'general',
@@ -767,13 +774,11 @@ function deleteProject(projectId) {
                 });
             });
             
-            // Izbriši projekt iz Firebase
             window.firebaseService.deleteProject(projectId);
         } else {
             saveToStorage();
         }
         
-        // Posodobi UI
         updateProjectSelectors();
         renderProjectsList();
         renderKanban();
@@ -791,7 +796,6 @@ function deleteProject(projectId) {
 // ============================================
 
 function setupFirebaseListeners() {
-    // Real-time za naloge
     if (window.firebaseService && window.firebaseService.subscribeToTasks) {
         window.firebaseService.subscribeToTasks((firebaseTasks) => {
             tasks = firebaseTasks;
@@ -801,7 +805,6 @@ function setupFirebaseListeners() {
         });
     }
     
-    // Real-time za dogodke
     if (window.firebaseService && window.firebaseService.subscribeToEvents) {
         window.firebaseService.subscribeToEvents((firebaseEvents) => {
             events = firebaseEvents;
@@ -810,7 +813,6 @@ function setupFirebaseListeners() {
         });
     }
     
-    // Real-time za projekte
     if (window.firebaseService && window.firebaseService.subscribeToProjects) {
         window.firebaseService.subscribeToProjects((firebaseProjects) => {
             projects = firebaseProjects;
@@ -820,7 +822,6 @@ function setupFirebaseListeners() {
         });
     }
     
-    // Naloži člane ekipe
     loadTeamMembersFromFirebase();
 }
 
@@ -870,11 +871,9 @@ async function syncDataWithFirebase() {
 // INICIALIZACIJA UI
 // ============================================
 function initializeUI() {
-    // Prikaži projektni pregled
     const overview = document.getElementById('projectOverviewContainer');
     if (overview) overview.style.display = 'block';
     
-    // Inicializiraj UI komponente
     updateProjectSelectors();
     renderKanban();
     updateStats();
@@ -884,52 +883,14 @@ function initializeUI() {
     renderProjectsList();
     renderMemberSelector();
     updateAssigneeFilter();
-    updateLiveClock(); // Zaženi takoj
+    updateLiveClock();
 }
 
 function startPeriodicChecks() {
-    // Preveri rojstne dneve vsako uro
     setInterval(checkBirthdays, 3600000);
-    
-    // Posodobi uro vsako sekundo
     setInterval(updateLiveClock, 1000);
-    
-    // Posodobi projektni pregled vsakih 5 minut
     setInterval(updateProjectOverview, 300000);
-    
-    // Preveri opomnike vsako minuto
     setInterval(checkReminders, 60000);
-}
-
-function setupEventListeners() {
-    // Event listenerji za filtre
-    const searchInput = document.getElementById('searchTasks');
-    const priorityFilter = document.getElementById('filterPriority');
-    const assigneeFilter = document.getElementById('filterAssignee');
-    
-    if (searchInput) searchInput.addEventListener('input', renderKanban);
-    if (priorityFilter) priorityFilter.addEventListener('change', renderKanban);
-    if (assigneeFilter) assigneeFilter.addEventListener('change', renderKanban);
-    
-    // Zapri modal z ESC
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeTaskModal();
-            closeEventModal();
-            const birthdayModal = document.getElementById('birthdayModal');
-            if (birthdayModal) closeModal('birthdayModal');
-        }
-    });
-    
-    // Zapri modal s klikom zunaj
-    window.addEventListener('click', function(e) {
-        if (e.target.classList.contains('modal')) {
-            closeTaskModal();
-            closeEventModal();
-            const birthdayModal = document.getElementById('birthdayModal');
-            if (birthdayModal) closeModal('birthdayModal');
-        }
-    });
 }
 
 // ============================================
@@ -1014,13 +975,11 @@ async function loadFromStorage() {
             
             console.log(`📂 Naloženo iz localStorage: ${tasks.length} nalog, ${events.length} dogodkov, ${projects.length} projektov`);
         } else {
-            // Demo podatki
             tasks = [];
             events = [];
             projects = [];
             members = [currentUser];
             
-            // Dodaj demo projekt
             projects.push({
                 id: 1,
                 name: 'Demo Projekt',
@@ -1035,19 +994,17 @@ async function loadFromStorage() {
 }
 
 // ============================================
-// KANBAN FUNKCIJE (delno že obstoječe, dodajmo manjkajoče)
+// KANBAN FUNKCIJE
 // ============================================
 
 function renderKanban() {
     const kanbanBoard = document.getElementById('kanbanBoard');
     if (!kanbanBoard) return;
     
-    // Pridobi filtre
     const searchTerm = document.getElementById('searchTasks')?.value.toLowerCase() || '';
     const priorityFilter = document.getElementById('filterPriority')?.value || 'all';
     const assigneeFilter = document.getElementById('filterAssignee')?.value || 'all';
     
-    // Stolpci
     const columns = [
         { id: 'todo', title: 'Čaka na začetek', icon: 'clipboard-list', color: 'var(--status-todo)' },
         { id: 'progress', title: 'V teku', icon: 'spinner', color: 'var(--status-progress)' },
@@ -1060,7 +1017,6 @@ function renderKanban() {
     columns.forEach(column => {
         let columnTasks = tasks.filter(task => task.status === column.id);
         
-        // Uporabi filtre
         if (searchTerm) {
             columnTasks = columnTasks.filter(task => 
                 task.title.toLowerCase().includes(searchTerm) ||
@@ -1137,7 +1093,6 @@ function createTaskElement(task) {
     div.draggable = true;
     div.ondragstart = drag;
     
-    // Preveri če uporabnik vidi nalogo
     const userCanSeeTask = task.assigneeIds && currentUser && 
                           task.assigneeIds.includes(currentUser.id.toString());
     
@@ -1172,7 +1127,6 @@ function createTaskElement(task) {
     const project = projects.find(p => p.id == task.projectId);
     const projectColor = project ? project.color : '#95a5a6';
     
-    // Avatarji izvajalcev (max 3)
     const assigneeAvatars = (task.assignees || []).slice(0, 3).map((assignee, index) => {
         return `
             <div class="assignee-avatar multiple" title="${assignee.name}">
@@ -1355,29 +1309,21 @@ function updateProjectOverview() {
     const now = new Date();
     const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     
-    // Izračunaj statistiko za vsak projekt
     const projectStats = projects.map(project => {
         const projectTasks = tasks.filter(task => task.projectId == project.id);
         const completedTasks = projectTasks.filter(t => t.status === 'done').length;
         const activeTasks = projectTasks.filter(t => t.status !== 'done').length;
         
-        // Izračunaj prioriteto
         let priorityScore = 0;
-        
-        // Visoka prioriteta
         priorityScore += projectTasks.filter(t => t.priority === 'high').length * 3;
-        
-        // Srednja prioriteta
         priorityScore += projectTasks.filter(t => t.priority === 'medium').length * 2;
         
-        // Zamujene naloge
         const overdueTasks = projectTasks.filter(t => {
             if (!t.dueDate || t.status === 'done') return false;
             return new Date(t.dueDate) < now;
         });
         priorityScore += overdueTasks.length * 5;
         
-        // Nujne naloge (naslednjih 7 dni)
         const urgentTasks = projectTasks.filter(t => {
             if (!t.dueDate || t.status === 'done') return false;
             const dueDate = new Date(t.dueDate);
@@ -1403,7 +1349,6 @@ function updateProjectOverview() {
         };
     });
     
-    // Sortiraj po prioriteti
     projectStats.sort((a, b) => b.priorityScore - a.priorityScore);
     
     let html = `
@@ -1461,7 +1406,6 @@ function updateProjectOverview() {
     
     container.innerHTML = html;
     
-    // Posodobi uro
     updateLiveClock();
 }
 
@@ -1510,7 +1454,7 @@ function updateLiveClock() {
 // ============================================
 function checkBirthdays() {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0].substring(5); // MM-DD
+    const todayStr = today.toISOString().split('T')[0].substring(5);
     
     events.forEach(event => {
         if (event.type === 'birthday' && !event.notifiedThisYear) {
@@ -1533,7 +1477,6 @@ function showBirthdayNotification(event) {
     const person = event.personName || event.title.replace('🎂 ', '');
     const message = `🎉 Danes ima rojstni dan ${person}!`;
     
-    // Desktop notification
     if (Notification.permission === 'granted') {
         new Notification('🎂 Rojstni dan!', {
             body: message,
@@ -1542,7 +1485,6 @@ function showBirthdayNotification(event) {
         });
     }
     
-    // Prikaži v aplikaciji
     showNotification(message, 'birthday');
 }
 
@@ -1599,7 +1541,6 @@ async function connectToTeams() {
             isTeamsMode = true;
             showNotification('Povezava z Teams uspešna', 'success');
             
-            // Ponovno naloži aplikacijo
             location.reload();
             
         } catch (error) {
@@ -1611,4 +1552,382 @@ async function connectToTeams() {
     }
 }
 
+// ============================================
+// UPORABNIŠKI AVATAR
+// ============================================
+function updateUserAvatar() {
+    const avatarCircle = document.getElementById('avatarCircle');
+    const avatarInitials = document.getElementById('avatarInitials');
+    const userName = document.getElementById('userName');
+    const userTeam = document.getElementById('userTeam');
+    const avatarContainer = document.getElementById('userAvatarContainer');
+    
+    if (!currentUser || !avatarCircle) return;
+    
+    if (avatarContainer) {
+        avatarContainer.style.display = 'flex';
+    }
+    
+    if (avatarInitials) {
+        avatarInitials.textContent = currentUser.initials;
+    }
+    
+    if (userName) {
+        userName.textContent = currentUser.name;
+    }
+    if (userTeam) {
+        userTeam.textContent = currentUser.teamId === 'personal' ? 'Personal' : currentUser.teamName || 'Ekipa';
+    }
+    
+    if (currentUser.isTeamsUser) {
+        avatarCircle.classList.add('teams-user');
+        avatarCircle.style.background = 'linear-gradient(135deg, var(--teams-purple), var(--teams-purple-light))';
+    }
+}
 
+// ============================================
+// UPRAVLJANJE ČLANOV EKIPE
+// ============================================
+function renderMemberSelector() {
+    const selector = document.getElementById('memberSelector');
+    if (!selector) return;
+    
+    selector.innerHTML = '';
+    
+    if (currentUser) {
+        const currentMember = document.createElement('div');
+        currentMember.className = 'member-option';
+        currentMember.innerHTML = `
+            <input type="checkbox" id="member_${currentUser.id}" class="member-checkbox" checked />
+            <label for="member_${currentUser.id}" class="member-label">
+                <div class="assignee-avatar current-user">${currentUser.initials}</div>
+                <span>${currentUser.name} (Jaz)</span>
+                <span class="current-user-badge">Trenutni</span>
+            </label>
+        `;
+        currentMember.classList.add('selected');
+        selector.appendChild(currentMember);
+        
+        currentMember.querySelector('.member-checkbox').addEventListener('change', function() {
+            currentMember.classList.toggle('selected', this.checked);
+        });
+    }
+    
+    members.filter(m => m.id !== currentUser?.id).forEach(member => {
+        const memberDiv = document.createElement('div');
+        memberDiv.className = 'member-option';
+        memberDiv.innerHTML = `
+            <input type="checkbox" id="member_${member.id}" class="member-checkbox" />
+            <label for="member_${member.id}" class="member-label">
+                <div class="assignee-avatar">${member.initials}</div>
+                <span>${member.name}</span>
+                ${member.isTeamsUser ? '<span class="current-user-badge" style="background: var(--teams-purple);">Teams</span>' : ''}
+            </label>
+        `;
+        selector.appendChild(memberDiv);
+        
+        memberDiv.querySelector('.member-checkbox').addEventListener('change', function() {
+            memberDiv.classList.toggle('selected', this.checked);
+        });
+    });
+}
+
+async function addTeamMember() {
+    const nameInput = document.getElementById('newMemberName');
+    const emailInput = document.getElementById('newMemberEmail');
+    
+    const name = nameInput?.value.trim();
+    const email = emailInput?.value.trim();
+    
+    if (!name) {
+        showNotification('Vnesite ime člana', 'warning');
+        return;
+    }
+    
+    try {
+        const newMember = {
+            name: name,
+            email: email,
+            initials: name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) || '??'
+        };
+        
+        let addedMember;
+        
+        if (firebaseInitialized && window.firebaseService) {
+            addedMember = await window.firebaseService.addTeamMember(newMember);
+        } else {
+            addedMember = {
+                ...newMember,
+                id: `local_${Date.now()}`,
+                isManual: true,
+                teamId: currentUser.teamId
+            };
+        }
+        
+        members.push(addedMember);
+        
+        renderMemberSelector();
+        updateAssigneeFilter();
+        
+        if (nameInput) nameInput.value = '';
+        if (emailInput) emailInput.value = '';
+        
+        showNotification(`Član ${name} dodan`, 'success');
+        
+    } catch (error) {
+        console.error("❌ Napaka pri dodajanju člana:", error);
+        showNotification('Napaka pri dodajanju člana', 'error');
+    }
+}
+
+// ============================================
+// UPRAVLJANJE NALOG - VEČ IZVAJALCEV
+// ============================================
+function openTaskModal(taskId = null) {
+    editingTaskId = taskId;
+    const modal = document.getElementById('taskModal');
+    
+    if (taskId) {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        
+        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i> Uredi nalogo';
+        document.getElementById('modalSubmitBtn').textContent = 'Posodobi nalogo';
+        
+        document.getElementById('taskTitle').value = task.title;
+        document.getElementById('taskDescription').value = task.description;
+        document.getElementById('taskPriority').value = task.priority;
+        document.getElementById('taskDueDate').value = task.dueDate;
+        document.getElementById('taskProject').value = task.projectId || 'general';
+        document.getElementById('taskTags').value = task.tags ? task.tags.join(', ') : '';
+        
+        setTimeout(() => {
+            document.querySelectorAll('#memberSelector .member-checkbox').forEach(checkbox => {
+                const memberId = checkbox.id.replace('member_', '');
+                const isChecked = task.assigneeIds && task.assigneeIds.includes(memberId) || 
+                                 (task.assigneeId && task.assigneeId.toString() === memberId);
+                checkbox.checked = isChecked;
+                checkbox.parentElement.parentElement.classList.toggle('selected', isChecked);
+            });
+        }, 100);
+        
+    } else {
+        document.getElementById('modalTitle').innerHTML = '<i class="fas fa-tasks"></i> Nova naloga';
+        document.getElementById('modalSubmitBtn').textContent = 'Dodaj nalogo';
+        document.getElementById('taskForm').reset();
+        
+        setTimeout(() => {
+            document.querySelectorAll('#memberSelector .member-checkbox').forEach(checkbox => {
+                const memberId = checkbox.id.replace('member_', '');
+                const isCurrentUser = memberId === currentUser?.id.toString();
+                checkbox.checked = isCurrentUser;
+                checkbox.parentElement.parentElement.classList.toggle('selected', isCurrentUser);
+            });
+        }, 100);
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function closeTaskModal() {
+    document.getElementById('taskModal').style.display = 'none';
+    editingTaskId = null;
+}
+
+document.getElementById('taskForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const title = document.getElementById('taskTitle').value.trim();
+    const description = document.getElementById('taskDescription').value.trim();
+    const priority = document.getElementById('taskPriority').value;
+    const dueDate = document.getElementById('taskDueDate').value;
+    const projectId = document.getElementById('taskProject').value;
+    const tags = document.getElementById('taskTags').value
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+    
+    const selectedCheckboxes = document.querySelectorAll('#memberSelector .member-checkbox:checked');
+    const assigneeIds = Array.from(selectedCheckboxes).map(cb => 
+        cb.id.replace('member_', '')
+    );
+    
+    if (assigneeIds.length === 0 && currentUser) {
+        assigneeIds.push(currentUser.id.toString());
+    }
+    
+    const assignees = members.filter(m => assigneeIds.includes(m.id.toString()));
+    const project = projects.find(p => p.id == projectId);
+    
+    if (editingTaskId) {
+        const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
+        if (taskIndex !== -1) {
+            const updatedTask = {
+                ...tasks[taskIndex],
+                title,
+                description,
+                priority,
+                dueDate,
+                projectId,
+                projectName: project ? project.name : 'Splošno',
+                tags,
+                assigneeIds,
+                assignees,
+                assigneeNames: assignees.map(a => a.name).join(', '),
+                assigneeInitials: assignees.map(a => a.initials),
+                updatedAt: new Date().toISOString()
+            };
+            
+            tasks[taskIndex] = updatedTask;
+            
+            if (firebaseInitialized && window.firebaseService) {
+                await window.firebaseService.saveTask(updatedTask);
+            } else {
+                saveToStorage();
+            }
+        }
+    } else {
+        const newTask = {
+            id: Date.now(),
+            title,
+            description: description || 'Ni opisa',
+            priority,
+            status: 'todo',
+            dueDate,
+            projectId,
+            projectName: project ? project.name : 'Splošno',
+            tags,
+            assigneeIds,
+            assignees,
+            assigneeNames: assignees.map(a => a.name).join(', '),
+            assigneeInitials: assignees.map(a => a.initials),
+            createdBy: currentUser,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        tasks.push(newTask);
+        
+        if (firebaseInitialized && window.firebaseService) {
+            await window.firebaseService.saveTask(newTask);
+        } else {
+            saveToStorage();
+        }
+    }
+    
+    renderKanban();
+    updateStats();
+    updateProjectOverview();
+    closeTaskModal();
+    showNotification(editingTaskId ? 'Naloga posodobljena' : 'Naloga dodana', 'success');
+});
+
+async function deleteTask(taskId) {
+    if (!confirm('Ali ste prepričani, da želite izbrisati to nalogo?')) return;
+    
+    try {
+        if (firebaseInitialized && window.firebaseService) {
+            await window.firebaseService.deleteTask(taskId);
+        } else {
+            tasks = tasks.filter(t => t.id !== taskId);
+            saveToStorage();
+            renderKanban();
+            updateStats();
+            updateProjectOverview();
+        }
+        
+        showNotification('Naloga izbrisana', 'success');
+    } catch (error) {
+        console.error("❌ Napaka pri brisanju naloge:", error);
+        showNotification('Napaka pri brisanju naloge', 'error');
+    }
+}
+
+// ============================================
+// ROJSTNI DAN MODAL
+// ============================================
+function openBirthdayModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'birthdayModal';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <h2><i class="fas fa-birthday-cake"></i> Dodaj Rojstni Dan</h2>
+            <form id="birthdayForm">
+                <div class="form-group">
+                    <label for="birthdayPerson">Ime in priimek *</label>
+                    <input type="text" id="birthdayPerson" class="form-control" required 
+                           placeholder="Vnesite ime osebe">
+                </div>
+                <div class="form-group">
+                    <label for="birthdayDate">Datum rojstnega dne *</label>
+                    <input type="date" id="birthdayDate" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="birthdayNotes">Opombe (izbirno)</label>
+                    <textarea id="birthdayNotes" class="form-control" rows="3" 
+                              placeholder="Dodatne informacije..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('birthdayModal')">Prekliči</button>
+                    <button type="submit" class="btn btn-birthday">Shrani Rojstni Dan</button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('birthdayDate').value = today;
+    
+    document.getElementById('birthdayForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        await saveBirthday();
+    });
+}
+
+async function saveBirthday() {
+    const person = document.getElementById('birthdayPerson').value.trim();
+    const date = document.getElementById('birthdayDate').value;
+    const notes = document.getElementById('birthdayNotes').value.trim();
+    
+    if (!person || !date) {
+        showNotification('Vnesite vsa obvezna polja', 'warning');
+        return;
+    }
+    
+    const birthdayEvent = {
+        id: Date.now(),
+        title: `🎂 ${person}`,
+        description: notes || `Rojstni dan ${person}`,
+        type: 'birthday',
+        startDate: new Date(date).toISOString(),
+        endDate: new Date(date + 'T23:59:59').toISOString(),
+        personName: person,
+        isRecurring: true,
+        recurringType: 'yearly',
+        birthdayYear: new Date(date).getFullYear(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    
+    try {
+        if (firebaseInitialized && window.firebaseService) {
+            await window.firebaseService.saveEvent(birthdayEvent);
+        } else {
+            events.push(birthdayEvent);
+            saveToStorage();
+        }
+        
+        closeModal('birthdayModal');
+        showNotification(`Rojstni dan za ${person} shranjen!`, 'success');
+        renderCalendar();
+        loadUpcomingEvents();
+        
+    } catch (error) {
+        console.error("❌ Napaka pri shranjevanju rojstnega dne:", error);
+        showNotification('Napaka pri shranjevanju', 'error');
+    }
+}
