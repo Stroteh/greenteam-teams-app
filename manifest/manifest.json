@@ -19,8 +19,8 @@
     "full": "GreenTeam aplikacija za sledenje projektom in nalogam z integracijo kanban tablice, koledarja in dnevnikov aktivnosti."
   },
   "icons": {
-    "outline": "https://stroteh.github.io/greenteam-teams-app/icons/outline.png",
-    "color": "https://stroteh.github.io/greenteam-teams-app/icons/color.png"
+    "outline": "https://stroteh.github.io/greenteam-teams-app/manifest/outline.png",
+    "color": "https://stroteh.github.io/greenteam-teams-app/manifest/color.png"
   },
   "accentColor": "#00A76D",
   "staticTabs": [
@@ -40,3 +40,4 @@
     "*.googleapis.com"
   ]
 }
+
