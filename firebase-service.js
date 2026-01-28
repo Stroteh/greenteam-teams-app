@@ -536,4 +536,4 @@ class FirebaseService {
 }
 
 // Globalna instanca
-const firebaseService = new FirebaseService();
+window.firebaseService = new FirebaseService();  // DODAJTE window.
