@@ -1,21 +1,40 @@
-# GreenTeam za Microsoft Teams
+# GreenTeam - Besplatna Teams Aplikacija
 
-![GreenTeam Logo](manifest/icon-color.png)
+ **Projektno vodenje z Kanban tablico in koledarjem za Microsoft Teams**
 
-Kanban tablica in koledar aplikacija za Microsoft Teams z upravljanjem projektov in dnevimi nalogami.
+##  Funkcionalnosti
 
-## 🚀 Funkcionalnosti
+ **Kanban tablica** s 4 stolpci (Todo, V teku, Pregled, Opravljeno)  
+ **Koledar** z mesečnim pregledom dogodkov  
+ **Rojstni dnevi** z avtomatskimi opomniki  
+ **Več izvajalcev** za vsako nalogo  
+ **Projektni pregled** s prioriteto  
+ **Teams integracija** (brez Azure stroškov)  
+ **Firebase sinhronizacija** v realnem času  
+ **Osebni avatar** s statistikami  
+ **Responsive design** za vse naprave  
 
-- ✅ **Kanban Board** s 4 stolpci
-- 📅 **Koledar** z mesečnim pregledom
-- 📝 **Dnevne naloge** in opomniki
-- 🏗️ **Upravljanje projektov**
-- 🔔 **Obveščanja** in opomniki
-- 👥 **Teams integracija**
+##  Namestitev v 3 korakih
 
-## 🛠️ Namestitev
+### 1. Firebase Setup
+1. Ustvari projekt na [Firebase Console](https://console.firebase.google.com/)
+2. Dodaj **Web App** in kopiraj konfiguracijo
+3. Omogoči **Firestore Database** (test mode)
+4. Dodaj pravila (glej `firestore.rules`)
 
-### Za razvijalce
-1. Klonirajte repozitorij:
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/greenteam-teams-app.git
+### 2. GitHub Secrets
+Dodaj te Secrets v GitHub Repository:
+- `FIREBASE_API_KEY`
+- `FIREBASE_AUTH_DOMAIN` 
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_STORAGE_BUCKET`
+- `FIREBASE_SENDER_ID`
+- `FIREBASE_APP_ID`
+
+### 3. Teams Deployment
+1. Pojdi na [Teams Developer Portal](https://dev.teams.microsoft.com/)
+2. Ustvari novo aplikacijo
+3. Uploadaj `teams-app-package.zip` (se ustvari samodejno)
+4. Testiraj v Teams Desktop/Web App
+
+##  Projekta struktura
