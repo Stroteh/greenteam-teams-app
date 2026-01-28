@@ -1,3 +1,4 @@
+// firebase-service.js - Popravljena verzija
 class FirebaseService {
     constructor() {
         this.db = null;
@@ -15,24 +16,25 @@ class FirebaseService {
         try {
             console.log(" FirebaseService se inicializira...");
             
+            // Preveri, če je Firebase na voljo
+            if (typeof firebase === 'undefined') {
+                console.error(" Firebase SDK ni na voljo");
+                return false;
+            }
+            
+            // Preveri Firebase konfiguracijo
+            if (!window.firebaseConfig) {
+                console.error(" Firebase konfiguracija ni na voljo");
+                return false;
+            }
+            
             // Preveri, če Firebase že obstaja
             if (!firebase.apps.length) {
-                if (!window.firebaseConfig) {
-                    console.error(" Firebase konfiguracija ni na voljo");
-                    return false;
-                }
                 firebase.initializeApp(window.firebaseConfig);
             }
             
             this.db = firebase.firestore();
             this.auth = firebase.auth();
-            
-            // Omogoči offline podporo
-            await firebase.firestore().enablePersistence({
-                synchronizeTabs: true
-            }).catch(err => {
-                console.log(" Offline podpora ni na voljo:", err.message);
-            });
             
             // Nastavi trenutnega uporabnika
             if (teamsContext && teamsContext.user) {
@@ -535,5 +537,5 @@ class FirebaseService {
     }
 }
 
-// Globalna instanca
-window.firebaseService = new FirebaseService();  // DODAJTE window.
+// Globalna instanca - popravljena napaka
+window.firebaseService = new FirebaseService();
