@@ -1,33 +1,3 @@
-// ============================================
-// NAVIGACIJA - MANJKAJOČA FUNKCIJA
-// ============================================
-function setupNavigation() {
-    const navButtons = document.querySelectorAll('.nav-btn');
-    if (!navButtons.length) return;
-    
-    navButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const section = this.dataset.section;
-            
-            // Odstrani active class od vseh gumbov
-            navButtons.forEach(b => b.classList.remove('active'));
-            
-            // Dodaj active trenutnemu gumbu
-            this.classList.add('active');
-            
-            // Skrij vse sekcije
-            document.querySelectorAll('.content-section').forEach(sec => {
-                sec.classList.remove('active');
-            });
-            
-            // Prikaži ciljno sekcijo
-            const targetSection = document.getElementById(`${section}-section`);
-            if (targetSection) {
-                targetSection.classList.add('active');
-            }
-        });
-    });
-}
 
 
 // ============================================
@@ -45,6 +15,98 @@ let isTeamsMode = false;
 let firebaseInitialized = false;
 
 const STORAGE_KEY = 'greenteam_app_data_v6';
+
+// ============================================
+// NAVIGACIJA - DODAJTE TO FUNKCIJO
+// ============================================
+function setupNavigation() {
+    console.log("📱 Setup navigation...");
+    
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const section = this.dataset.section;
+            
+            // Odstrani active class od vseh gumbov
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('active');
+            });
+            
+            // Dodaj active trenutnemu gumbu
+            this.classList.add('active');
+            
+            // Skrij vse sekcije
+            document.querySelectorAll('.content-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            
+            // Prikaži ciljno sekcijo
+            const targetSection = document.getElementById(`${section}-section`);
+            if (targetSection) {
+                targetSection.classList.add('active');
+                
+                // Prikaži/projektni pregled samo za kanban
+                const overview = document.getElementById('projectOverviewContainer');
+                if (overview) {
+                    overview.style.display = section === 'kanban' ? 'block' : 'none';
+                }
+            }
+        });
+    });
+}
+
+// ============================================
+// EVENT LISTENERJI - DODAJTE TUDI TO
+// ============================================
+function setupEventListeners() {
+    console.log("🎮 Setup event listeners...");
+    
+    // Event listenerji za filtre (če obstajajo)
+    const searchInput = document.getElementById('searchTasks');
+    const priorityFilter = document.getElementById('filterPriority');
+    const assigneeFilter = document.getElementById('filterAssignee');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            if (typeof renderKanban === 'function') renderKanban();
+        });
+    }
+    
+    if (priorityFilter) {
+        priorityFilter.addEventListener('change', function() {
+            if (typeof renderKanban === 'function') renderKanban();
+        });
+    }
+    
+    if (assigneeFilter) {
+        assigneeFilter.addEventListener('change', function() {
+            if (typeof renderKanban === 'function') renderKanban();
+        });
+    }
+    
+    // Zapri modal z ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (typeof closeTaskModal === 'function') closeTaskModal();
+            if (typeof closeEventModal === 'function') closeEventModal();
+            const birthdayModal = document.getElementById('birthdayModal');
+            if (birthdayModal) {
+                birthdayModal.remove();
+            }
+        }
+    });
+    
+    // Zapri modal s klikom zunaj
+    window.addEventListener('click', function(e) {
+        if (e.target.classList.contains('modal')) {
+            if (typeof closeTaskModal === 'function') closeTaskModal();
+            if (typeof closeEventModal === 'function') closeEventModal();
+            const birthdayModal = document.getElementById('birthdayModal');
+            if (birthdayModal) {
+                birthdayModal.remove();
+            }
+        }
+    });
+}
 
 // ============================================
 // INICIALIZACIJA APLIKACIJE - POPRAVLJENO
@@ -1548,4 +1610,5 @@ async function connectToTeams() {
         showNotification('Teams SDK ni na voljo. Odprite aplikacijo v Microsoft Teams.', 'warning');
     }
 }
+
 
