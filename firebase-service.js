@@ -6,11 +6,11 @@ class FirebaseService {
         this.isInitialized = false;
         this.currentTeamId = null;
         this.currentUserId = null;
-        console.log("🔥 FirebaseService kreiran");
+        console.log(" FirebaseService kreiran");
     }
 
     async initialize(teamsContext = null) {
-        console.log("🚀 FirebaseService se pokreće...");
+        console.log(" FirebaseService se pokreće...");
         
         try {
             if (!firebase.apps.length) {
@@ -28,15 +28,15 @@ class FirebaseService {
             if (teamsContext && teamsContext.teamId) {
                 this.currentTeamId = teamsContext.teamId;
                 this.currentUserId = teamsContext.userObjectId || `user_${Date.now()}`;
-                console.log(`📱 Teams način: Team ID = ${this.currentTeamId}, User ID = ${this.currentUserId}`);
+                console.log(` Teams način: Team ID = ${this.currentTeamId}, User ID = ${this.currentUserId}`);
             } else {
                 this.currentTeamId = 'personal';
                 this.currentUserId = `user_${Date.now()}`;
-                console.log(`🏠 Personal način: User ID = ${this.currentUserId}`);
+                console.log(` Personal način: User ID = ${this.currentUserId}`);
             }
             
             this.isInitialized = true;
-            console.log("✅ FirebaseService spreman!");
+            console.log(" FirebaseService spreman!");
             
             // Pokaži Firebase badge
             const badge = document.getElementById('firebaseBadge');
@@ -45,7 +45,7 @@ class FirebaseService {
             return true;
             
         } catch (error) {
-            console.error("❌ Greška pri inicijalizaciji Firebase:", error);
+            console.error(" Greška pri inicijalizaciji Firebase:", error);
             return false;
         }
     }
@@ -62,7 +62,7 @@ class FirebaseService {
 
     async saveTask(task) {
         try {
-            console.log("💾 Spremanje zadatka u Firebase:", task.title);
+            console.log(" Spremanje zadatka u Firebase:", task.title);
             
             // Pripremi podatke za Firebase
             const taskData = {
@@ -78,17 +78,17 @@ class FirebaseService {
             
             // Spremi u Firebase
             await this.getTasksCollection().doc(task.id.toString()).set(taskData, { merge: true });
-            console.log("✅ Zadatak spremljen u Firebase");
+            console.log(" Zadatak spremljen u Firebase");
             return true;
             
         } catch (error) {
-            console.error("❌ Greška pri spremanju zadatka:", error);
+            console.error(" Greška pri spremanju zadatka:", error);
             throw error;
         }
     }
 
     subscribeToTasks(onTasksUpdated) {
-        console.log("👂 Uključujem real-time osluškivanje za zadatke...");
+        console.log(" Uključujem real-time osluškivanje za zadatke...");
         
         try {
             const tasksCollection = this.getTasksCollection();
@@ -107,13 +107,13 @@ class FirebaseService {
                         tasks.push(data);
                     });
                     
-                    console.log(`📥 Primljeno ${tasks.length} zadataka iz Firebase`);
+                    console.log(` Primljeno ${tasks.length} zadataka iz Firebase`);
                     onTasksUpdated(tasks);
                 }, (error) => {
-                    console.error("❌ Greška u osluškivanju zadataka:", error);
+                    console.error(" Greška u osluškivanju zadataka:", error);
                 });
         } catch (error) {
-            console.error("❌ Greška pri pokretanju osluškivanja:", error);
+            console.error(" Greška pri pokretanju osluškivanja:", error);
         }
     }
 
@@ -124,10 +124,10 @@ class FirebaseService {
                 ...updates,
                 updatedAt: new Date().toISOString()
             });
-            console.log(`✏️ Zadatak ${taskId} ažuriran`);
+            console.log(` Zadatak ${taskId} ažuriran`);
             return true;
         } catch (error) {
-            console.error("❌ Greška pri ažuriranju zadatka:", error);
+            console.error(" Greška pri ažuriranju zadatka:", error);
             throw error;
         }
     }
@@ -136,10 +136,10 @@ class FirebaseService {
     async deleteTask(taskId) {
         try {
             await this.getTasksCollection().doc(taskId.toString()).delete();
-            console.log(`🗑️ Zadatak ${taskId} izbrisan`);
+            console.log(` Zadatak ${taskId} izbrisan`);
             return true;
         } catch (error) {
-            console.error("❌ Greška pri brisanju zadatka:", error);
+            console.error(" Greška pri brisanju zadatka:", error);
             throw error;
         }
     }
@@ -147,7 +147,7 @@ class FirebaseService {
     // 8. Spremi događaj
     async saveEvent(event) {
         try {
-            console.log("💾 Spremanje događaja u Firebase:", event.title);
+            console.log(" Spremanje događaja u Firebase:", event.title);
             
             const eventData = {
                 ...event,
@@ -157,17 +157,17 @@ class FirebaseService {
             };
             
             await this.getEventsCollection().doc(event.id.toString()).set(eventData, { merge: true });
-            console.log("✅ Događaj spremljen u Firebase");
+            console.log(" Događaj spremljen u Firebase");
             return true;
         } catch (error) {
-            console.error("❌ Greška pri spremanju događaja:", error);
+            console.error(" Greška pri spremanju događaja:", error);
             throw error;
         }
     }
 
     // 9. Uključi real-time osluškivanje za događaje
     subscribeToEvents(onEventsUpdated) {
-        console.log("👂 Uključujem real-time osluškivanje za događaje...");
+        console.log(" Uključujem real-time osluškivanje za događaje...");
         
         try {
             this.unsubscribeEvents = this.getEventsCollection()
@@ -182,13 +182,13 @@ class FirebaseService {
                         events.push(data);
                     });
                     
-                    console.log(`📅 Primljeno ${events.length} događaja iz Firebase`);
+                    console.log(` Primljeno ${events.length} događaja iz Firebase`);
                     onEventsUpdated(events);
                 }, (error) => {
-                    console.error("❌ Greška u osluškivanju događaja:", error);
+                    console.error(" Greška u osluškivanju događaja:", error);
                 });
         } catch (error) {
-            console.error("❌ Greška pri pokretanju osluškivanja:", error);
+            console.error(" Greška pri pokretanju osluškivanja:", error);
         }
     }
 
@@ -196,10 +196,10 @@ class FirebaseService {
     async deleteEvent(eventId) {
         try {
             await this.getEventsCollection().doc(eventId.toString()).delete();
-            console.log(`🗑️ Događaj ${eventId} izbrisan`);
+            console.log(` Događaj ${eventId} izbrisan`);
             return true;
         } catch (error) {
-            console.error("❌ Greška pri brisanju događaja:", error);
+            console.error(" Greška pri brisanju događaja:", error);
             throw error;
         }
     }
@@ -207,7 +207,7 @@ class FirebaseService {
     // 11. Sinkroniziraj lokalne podatke s Firebaseom
     async syncWithLocal(localTasks, localEvents) {
         try {
-            console.log("🔄 Počinjem sinkronizaciju s Firebase...");
+            console.log(" Počinjem sinkronizaciju s Firebase...");
             
             // Dohvati zadatke iz Firebase
             const tasksSnapshot = await this.getTasksCollection().get();
@@ -231,11 +231,11 @@ class FirebaseService {
                 firebaseEvents.push(data);
             });
             
-            console.log(`📊 Firebase ima ${firebaseTasks.length} zadataka i ${firebaseEvents.length} događaja`);
+            console.log(` Firebase ima ${firebaseTasks.length} zadataka i ${firebaseEvents.length} događaja`);
             
             // Ako Firebase ima podatke, koristi te
             if (firebaseTasks.length > 0 || firebaseEvents.length > 0) {
-                console.log("🔄 Koristim podatke iz Firebase");
+                console.log(" Koristim podatke iz Firebase");
                 return {
                     tasks: firebaseTasks,
                     events: firebaseEvents
@@ -243,7 +243,7 @@ class FirebaseService {
             }
             
             // Inače, spremi lokalne u Firebase
-            console.log("🔄 Firebase je prazan, spremanjem lokalne podatke...");
+            console.log(" Firebase je prazan, spremanjem lokalne podatke...");
             for (const task of localTasks) {
                 await this.saveTask(task);
             }
@@ -257,7 +257,7 @@ class FirebaseService {
             };
             
         } catch (error) {
-            console.error("❌ Greška pri sinkronizaciji s Firebase:", error);
+            console.error(" Greška pri sinkronizaciji s Firebase:", error);
             return {
                 tasks: localTasks,
                 events: localEvents
@@ -279,7 +279,7 @@ class FirebaseService {
             });
             return tasks;
         } catch (error) {
-            console.error("❌ Greška pri učitavanju zadataka:", error);
+            console.error(" Greška pri učitavanju zadataka:", error);
             return [];
         }
     }
@@ -298,7 +298,7 @@ class FirebaseService {
             });
             return events;
         } catch (error) {
-            console.error("❌ Greška pri učitavanju događaja:", error);
+            console.error(" Greška pri učitavanju događaja:", error);
             return [];
         }
     }
@@ -307,11 +307,11 @@ class FirebaseService {
     unsubscribe() {
         if (this.unsubscribeTasks) {
             this.unsubscribeTasks();
-            console.log("🔇 Zaustavljeno osluškivanje zadataka");
+            console.log(" Zaustavljeno osluškivanje zadataka");
         }
         if (this.unsubscribeEvents) {
             this.unsubscribeEvents();
-            console.log("🔇 Zaustavljeno osluškivanje događaja");
+            console.log(" Zaustavljeno osluškivanje događaja");
         }
     }
 
