@@ -34,7 +34,7 @@ jobs:
         if [ ! -f "firebase-service.js" ]; then echo "❌ firebase-service.js not found"; exit 1; else echo "✅ firebase-service.js exists"; fi
         if [ ! -f "firebase-config.js" ]; then echo "❌ firebase-config.js not found"; exit 1; else echo "✅ firebase-config.js exists"; fi
     
-    # 3. Zamijeni placeholdere u firebase-config.js sa stvarnim vrijednostima
+    # 3. Zamijeni placeholdere u firebase-config.js sa stvarnim vrijednostima 
     - name: Update Firebase config with secrets
       run: |
         echo "🔧 Updating firebase-config.js with secrets..."
