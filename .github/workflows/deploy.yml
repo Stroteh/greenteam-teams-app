@@ -36,8 +36,12 @@ jobs:
         echo "🔄 Zamenjujem Firebase placeholderje..."
         
         # Preveri vsebino datoteke
-        echo "📄 Trenutna vsebina firebase-config.js (prvih 15 vrstic):"
-        head -15 firebase-config.js
+        echo "📄 Trenutna vsebina firebase-config.js:"
+        cat firebase-config.js
+        
+        # ODSTRANI MOREbitne export stavke (napaka: export declarations may only appear at top level of a module)
+        sed -i '/^export/d' firebase-config.js
+        sed -i '/export default/d' firebase-config.js
         
         # Zamenjaj VSE placeholdere z realnimi vrednostmi
         sed -i "s|FIREBASE_API_KEY|${{ secrets.FIREBASE_API_KEY }}|g" firebase-config.js
@@ -46,11 +50,18 @@ jobs:
         sed -i "s|FIREBASE_MESSAGING_SENDER_ID|${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}|g" firebase-config.js
         sed -i "s|FIREBASE_APP_ID|${{ secrets.FIREBASE_APP_ID }}|g" firebase-config.js
         sed -i "s|FIREBASE_STORAGE_BUCKET|${{ secrets.FIREBASE_STORAGE_BUCKET }}|g" firebase-config.js
-       
+        
+        # Dodaj console.log za debugging
+        echo "" >> firebase-config.js
+        echo "// Debug info" >> firebase-config.js
+        echo "if (window.firebaseConfig && window.firebaseConfig.apiKey) {" >> firebase-config.js
+        echo "    console.log('✅ Firebase konfiguracija uspešno naložena');" >> firebase-config.js
+        echo "    console.log('🌐 Projekt:', window.firebaseConfig.projectId);" >> firebase-config.js
+        echo "}" >> firebase-config.js
         
         echo "✅ Placeholderji zamenjani"
-        echo "📄 Nova vsebina firebase-config.js (prvih 15 vrstic):"
-        head -15 firebase-config.js
+        echo "📄 Nova vsebina firebase-config.js:"
+        cat firebase-config.js
     
     # 4. Setup GitHub Pages
     - name: Setup Pages
@@ -74,9 +85,3 @@ jobs:
       run: |
         echo "🎉 Deployment successful!"
         echo "🌐 Your app is available at: ${{ steps.deployment.outputs.page_url }}"
-        echo ""
-        echo "🔍 Preveri Firebase konfiguracijo:"
-        echo "   - Odpri aplikacijo"
-        echo "   - Pritisni F12 za Developer Tools"
-        echo "   - Pojdi na Console"
-        echo "   - Če vidiš '✅ Firebase uspešno povezan', je vse OK"
