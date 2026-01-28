@@ -50,11 +50,12 @@ jobs:
         head -5 firebase-config.js
         
         # Zamijeni placeholdere sa stvarnim vrijednostima
-        sed -i "s|_FIREBASE_API_KEY_|${{ secrets.FIREBASE_API_KEY }}|g" firebase-config.js
-        sed -i "s|_FIREBASE_AUTH_DOMAIN_|${{ secrets.FIREBASE_AUTH_DOMAIN }}|g" firebase-config.js
-        sed -i "s|_FIREBASE_PROJECT_ID_|${{ secrets.FIREBASE_PROJECT_ID }}|g" firebase-config.js
-        sed -i "s|_FIREBASE_SENDER_ID_|${{ secrets.FIREBASE_SENDER_ID }}|g" firebase-config.js
-        sed -i "s|_FIREBASE_APP_ID_|${{ secrets.FIREBASE_APP_ID }}|g" firebase-config.js
+        # Za macOS/Linux kompatibilnost
+        sed -i.bak "s|_FIREBASE_API_KEY_|${{ secrets.FIREBASE_API_KEY }}|g" firebase-config.js && rm firebase-config.js.bak
+        sed -i.bak "s|_FIREBASE_AUTH_DOMAIN_|${{ secrets.FIREBASE_AUTH_DOMAIN }}|g" firebase-config.js && rm firebase-config.js.bak
+        sed -i.bak "s|_FIREBASE_PROJECT_ID_|${{ secrets.FIREBASE_PROJECT_ID }}|g" firebase-config.js && rm firebase-config.js.bak
+        sed -i.bak "s|_FIREBASE_SENDER_ID_|${{ secrets.FIREBASE_SENDER_ID }}|g" firebase-config.js && rm firebase-config.js.bak
+        sed -i.bak "s|_FIREBASE_APP_ID_|${{ secrets.FIREBASE_APP_ID }}|g" firebase-config.js && rm firebase-config.js.bak
         
         echo "✅ Firebase config updated with secrets"
         echo "Updated firebase-config.js (first 5 lines):"
@@ -64,16 +65,16 @@ jobs:
     - name: Setup Pages
       uses: actions/configure-pages@v3
     
-    # 5. Upload artifact
+    # 5. Upload artifact (ažurirano na v3)
     - name: Upload artifact
-      uses: actions/upload-pages-artifact@v2
+      uses: actions/upload-pages-artifact@v3
       with:
         path: '.'
     
     # 6. Deploy to GitHub Pages
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v2
+      uses: actions/deploy-pages@v4
       with:
         timeout: 600000  # 10 minutes timeout
     
